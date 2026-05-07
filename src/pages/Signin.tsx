@@ -25,12 +25,12 @@ export default function Signin({
       console.log("API → post/users/email", payload);
 
       const emailResponse = await fetch(API_ENDPOINTS.loginByEmail, {
-  method: "POST",
-  headers: {
-    "Content-Type": "application/json",
-  },
-  body: JSON.stringify(payload),
-});
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
 
       const emailData = await emailResponse.json();
 
@@ -55,7 +55,6 @@ export default function Signin({
       console.log("API → get/users/me", { userId });
 
       const userResponse = await fetch(url);
-
       const userData = await userResponse.json();
 
       if (!userResponse.ok) {
@@ -66,8 +65,8 @@ export default function Signin({
 
       setUser(userData);
       setIsError(false);
-      onSigninSuccess(userData);
       setMessage("Signin successful 🎉");
+      onSigninSuccess(userData);
     } catch (error) {
       setIsError(true);
       setMessage("Unable to connect to server. Please try again.");
@@ -76,51 +75,65 @@ export default function Signin({
 
   return (
     <div style={styles.page}>
-  <div style={styles.container}>
-    <BackButton label="Home" onClick={onBack} />
+      <div style={styles.container}>
+        <BackButton label="Home" onClick={onBack} />
 
-    <div style={styles.card}>
-      <div style={styles.emoji}>🥗</div>
+        <div style={styles.card}>
+          <div style={styles.badge}>✨ Welcome back to FitTrack</div>
 
-        <h1 style={styles.title}>Welcome Back</h1>
+          <div style={styles.emoji}>🥗</div>
 
-        <p style={styles.subtitle}>
-          Sign in with your email to continue tracking your goals.
-        </p>
+          <h1 style={styles.title}>Continue your progress</h1>
 
-        <input
-          style={styles.input}
-          name="email"
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-        />
+          <p style={styles.subtitle}>
+            Sign in with your registered email and keep your daily goals on
+            track.
+          </p>
 
-        {message && (
-          <div
-            style={{
-              ...styles.message,
-              ...(isError ? styles.errorMessage : styles.successMessage),
-            }}
-          >
-            {message}
+          <div style={styles.previewCard}>
+            <div style={styles.previewItem}>🥗 Track nutrition</div>
+            <div style={styles.previewItem}>🚶 Stay consistent</div>
+            <div style={styles.previewItem}>📊 View progress</div>
           </div>
-        )}
 
-        {user && (
-          <div style={styles.userBox}>
-            <p style={styles.userName}>
-              Hi, {user.firstName} {user.lastName}
-            </p>
-            <p style={styles.userEmail}>{user.email}</p>
-          </div>
-        )}
+          <input
+            style={styles.input}
+            name="email"
+            type="email"
+            placeholder="Email address"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
 
-        <button style={styles.primaryButton} onClick={handleSubmit}>
-          Sign In
-        </button>
+          <p style={styles.helperText}>
+            We’ll find your account using your registered email.
+          </p>
+
+          {message && (
+            <div
+              style={{
+                ...styles.message,
+                ...(isError ? styles.errorMessage : styles.successMessage),
+              }}
+            >
+              {message}
+            </div>
+          )}
+
+          {user && (
+            <div style={styles.userBox}>
+              <p style={styles.userName}>
+                Hi, {user.firstName} {user.lastName}
+              </p>
+              <p style={styles.userEmail}>{user.email}</p>
+            </div>
+          )}
+
+          <button style={styles.primaryButton} onClick={handleSubmit}>
+            Sign In
+          </button>
+        </div>
       </div>
-    </div>
     </div>
   );
 }
@@ -136,47 +149,81 @@ const styles: Record<string, React.CSSProperties> = {
       "linear-gradient(135deg, #d1fae5 0%, #ecfeff 50%, #fef3c7 100%)",
     fontFamily: "Arial, sans-serif",
   },
+  container: {
+    width: "100%",
+    maxWidth: "430px",
+    margin: "0 auto",
+  },
   card: {
-  width: "100%",
-  maxWidth: "430px",
-  padding: "30px 24px",
-  borderRadius: "28px",
-  background: "rgba(255, 255, 255, 0.88)",
-  boxShadow: "0 20px 50px rgba(0,0,0,0.15)",
-  textAlign: "center",
-  animation: "fadeIn 0.8s ease",
-  boxSizing: "border-box", // add this
-},
+    width: "100%",
+    padding: "30px 24px",
+    borderRadius: "30px",
+    background: "rgba(255, 255, 255, 0.92)",
+    boxShadow: "0 24px 60px rgba(6, 78, 59, 0.18)",
+    textAlign: "center",
+    animation: "fadeIn 0.8s ease",
+    boxSizing: "border-box",
+  },
+  badge: {
+    display: "inline-block",
+    padding: "8px 14px",
+    borderRadius: "999px",
+    background: "#ecfdf5",
+    color: "#047857",
+    fontSize: "13px",
+    fontWeight: 800,
+    marginBottom: "16px",
+  },
   emoji: {
     fontSize: "54px",
     marginBottom: "8px",
     animation: "bounce 1.8s infinite",
   },
   title: {
-    fontSize: "32px",
-    margin: "0 0 8px",
+    fontSize: "30px",
+    lineHeight: 1.15,
+    margin: "0 0 10px",
     color: "#064e3b",
+    fontWeight: 900,
   },
-  container: {
-  maxWidth: "430px",
-  margin: "0 auto",
-},
   subtitle: {
     fontSize: "15px",
     color: "#475569",
     lineHeight: 1.5,
-    marginBottom: "22px",
+    margin: "0 0 20px",
+  },
+  previewCard: {
+    display: "grid",
+    gap: "10px",
+    background: "linear-gradient(135deg, #ecfdf5, #ffffff)",
+    border: "1px solid #bbf7d0",
+    borderRadius: "20px",
+    padding: "14px",
+    marginBottom: "20px",
+  },
+  previewItem: {
+    background: "white",
+    borderRadius: "14px",
+    padding: "10px",
+    color: "#064e3b",
+    fontSize: "14px",
+    fontWeight: 800,
   },
   input: {
     width: "100%",
     boxSizing: "border-box",
-    padding: "14px 16px",
-    borderRadius: "14px",
+    padding: "15px 16px",
+    borderRadius: "16px",
     border: "1.5px solid #a7f3d0",
     fontSize: "15px",
     outline: "none",
     background: "white",
-    marginBottom: "18px",
+    marginBottom: "8px",
+  },
+  helperText: {
+    margin: "0 0 18px",
+    fontSize: "12px",
+    color: "#64748b",
   },
   message: {
     padding: "14px 16px",
@@ -216,15 +263,16 @@ const styles: Record<string, React.CSSProperties> = {
     color: "#475569",
   },
   primaryButton: {
-  width: "100%",
-  boxSizing: "border-box", // add this
-  padding: "15px",
-  borderRadius: "16px",
-  border: "none",
-  background: "#10b981",
-  color: "white",
-  fontSize: "17px",
-  fontWeight: "bold",
-  cursor: "pointer",
-},
+    width: "100%",
+    boxSizing: "border-box",
+    padding: "15px",
+    borderRadius: "18px",
+    border: "none",
+    background: "linear-gradient(135deg, #10b981, #059669)",
+    color: "white",
+    fontSize: "17px",
+    fontWeight: "bold",
+    cursor: "pointer",
+    boxShadow: "0 10px 24px rgba(16, 185, 129, 0.28)",
+  },
 };

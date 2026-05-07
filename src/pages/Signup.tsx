@@ -118,48 +118,72 @@ export default function Signup({ onBack, onSignin }: SignupProps) {
         <BackButton label="Home" onClick={onBack} />
 
         <div style={styles.card}>
+          <div style={styles.badge}>✨ Start your FitTrack journey</div>
+
           <div style={styles.emoji}>🥗</div>
 
           <h1 style={styles.title}>Create Account</h1>
 
           <p style={styles.subtitle}>
-            Set your daily goals and start tracking your fitness.
+            Set your profile and daily goals so FitTrack can personalize your
+            progress.
           </p>
 
-          <div style={styles.grid}>
-            {renderInput("firstName", "First Name", form.firstName)}
-            {renderInput("lastName", "Last Name", form.lastName)}
-            {renderInput("email", "Email", form.email, "email")}
-            {renderInput(
-              "dailyProteinGoal",
-              "Protein Goal (g)",
-              form.dailyProteinGoal,
-              "number"
-            )}
-            {renderInput(
-              "dailyFiberGoal",
-              "Fiber Goal (g)",
-              form.dailyFiberGoal,
-              "number"
-            )}
-            {renderInput(
-              "dailyStepsGoal",
-              "Steps Goal",
-              form.dailyStepsGoal,
-              "number"
-            )}
-            {renderInput(
-              "dailyWaterGoal",
-              "Water Goal (L)",
-              form.dailyWaterGoal,
-              "number"
-            )}
-            {renderInput(
-              "dailyCalorieGoal",
-              "Calorie Goal",
-              form.dailyCalorieGoal,
-              "number"
-            )}
+          <div style={styles.sectionCard}>
+            <div style={styles.sectionHeader}>
+              <span style={styles.sectionIcon}>👤</span>
+              <span style={styles.sectionTitle}>Profile</span>
+            </div>
+
+            <div style={styles.grid}>
+              {renderInput("firstName", "First Name", form.firstName)}
+              {renderInput("lastName", "Last Name", form.lastName)}
+              {renderInput("email", "Email", form.email, "email")}
+            </div>
+          </div>
+
+          <div style={styles.sectionCard}>
+            <div style={styles.sectionHeader}>
+              <span style={styles.sectionIcon}>🎯</span>
+              <span style={styles.sectionTitle}>Daily Goals</span>
+            </div>
+
+            <p style={styles.helperText}>
+              You can always adjust these goals later.
+            </p>
+
+            <div style={styles.grid}>
+              {renderInput(
+                "dailyProteinGoal",
+                "Protein Goal (g)",
+                form.dailyProteinGoal,
+                "number"
+              )}
+              {renderInput(
+                "dailyFiberGoal",
+                "Fiber Goal (g)",
+                form.dailyFiberGoal,
+                "number"
+              )}
+              {renderInput(
+                "dailyStepsGoal",
+                "Steps Goal",
+                form.dailyStepsGoal,
+                "number"
+              )}
+              {renderInput(
+                "dailyWaterGoal",
+                "Water Goal (L)",
+                form.dailyWaterGoal,
+                "number"
+              )}
+              {renderInput(
+                "dailyCalorieGoal",
+                "Calorie Goal",
+                form.dailyCalorieGoal,
+                "number"
+              )}
+            </div>
           </div>
 
           {message && (
@@ -174,12 +198,12 @@ export default function Signup({ onBack, onSignin }: SignupProps) {
           )}
 
           <button style={styles.primaryButton} onClick={handleSubmit}>
-            Sign Up
+            Create My Account 🚀
           </button>
 
           {isCreated && (
             <button style={styles.signinButton} onClick={onSignin}>
-              Sign In
+              Continue to Sign In
             </button>
           )}
 
@@ -203,18 +227,29 @@ const styles: Record<string, React.CSSProperties> = {
     fontFamily: "Arial, sans-serif",
   },
   container: {
+    width: "100%",
     maxWidth: "430px",
     margin: "0 auto",
   },
   card: {
     width: "100%",
     padding: "30px 24px",
-    borderRadius: "28px",
-    background: "rgba(255, 255, 255, 0.88)",
-    boxShadow: "0 20px 50px rgba(0,0,0,0.15)",
+    borderRadius: "30px",
+    background: "rgba(255, 255, 255, 0.92)",
+    boxShadow: "0 24px 60px rgba(6, 78, 59, 0.18)",
     textAlign: "center",
     animation: "fadeIn 0.8s ease",
     boxSizing: "border-box",
+  },
+  badge: {
+    display: "inline-block",
+    padding: "8px 14px",
+    borderRadius: "999px",
+    background: "#ecfdf5",
+    color: "#047857",
+    fontSize: "13px",
+    fontWeight: 800,
+    marginBottom: "16px",
   },
   emoji: {
     fontSize: "54px",
@@ -223,19 +258,48 @@ const styles: Record<string, React.CSSProperties> = {
   },
   title: {
     fontSize: "32px",
-    margin: "0 0 8px",
+    lineHeight: 1.1,
+    margin: "0 0 10px",
     color: "#064e3b",
+    fontWeight: 900,
   },
   subtitle: {
     fontSize: "15px",
     color: "#475569",
     lineHeight: 1.5,
-    marginBottom: "22px",
+    margin: "0 0 20px",
+  },
+  sectionCard: {
+    background: "linear-gradient(135deg, #ecfdf5, #ffffff)",
+    border: "1px solid #bbf7d0",
+    borderRadius: "22px",
+    padding: "16px",
+    marginBottom: "18px",
+    boxShadow: "0 10px 24px rgba(16, 185, 129, 0.1)",
+    textAlign: "left",
+  },
+  sectionHeader: {
+    display: "flex",
+    alignItems: "center",
+    gap: "8px",
+    marginBottom: "12px",
+  },
+  sectionIcon: {
+    fontSize: "18px",
+  },
+  sectionTitle: {
+    fontSize: "15px",
+    fontWeight: 900,
+    color: "#064e3b",
+  },
+  helperText: {
+    margin: "-4px 0 14px",
+    fontSize: "12px",
+    color: "#64748b",
   },
   grid: {
     display: "grid",
-    gap: "16px",
-    marginBottom: "20px",
+    gap: "14px",
   },
   inputGroup: {
     position: "relative",
@@ -244,7 +308,7 @@ const styles: Record<string, React.CSSProperties> = {
     width: "100%",
     boxSizing: "border-box",
     padding: "18px 16px 10px",
-    borderRadius: "14px",
+    borderRadius: "15px",
     border: "1.5px solid #a7f3d0",
     fontSize: "15px",
     outline: "none",
@@ -292,19 +356,22 @@ const styles: Record<string, React.CSSProperties> = {
   },
   primaryButton: {
     width: "100%",
+    boxSizing: "border-box",
     padding: "15px",
-    borderRadius: "16px",
+    borderRadius: "18px",
     border: "none",
-    background: "#10b981",
+    background: "linear-gradient(135deg, #10b981, #059669)",
     color: "white",
     fontSize: "17px",
     fontWeight: "bold",
     cursor: "pointer",
+    boxShadow: "0 10px 24px rgba(16, 185, 129, 0.28)",
   },
   signinButton: {
     width: "100%",
+    boxSizing: "border-box",
     padding: "15px",
-    borderRadius: "16px",
+    borderRadius: "18px",
     border: "none",
     background: "#047857",
     color: "white",
