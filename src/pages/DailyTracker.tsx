@@ -133,13 +133,27 @@ export default function DailyTracker({
       return;
     }
 
-    setForm({ ...form, [target.name]: target.value });
+    const value = target.value;
+
+    setForm({
+      ...form,
+      [target.name]: value.replace(/^0+(?=\d)/, ""),
+    });
   };
 
   const handleQuickChange = (name: string, delta: number) => {
+    const increments: Record<string, number> = {
+      steps: 100,
+      water: 1,
+      calories: 50,
+    };
+
+    const amount = increments[name] ?? Math.abs(delta);
+
     setForm((prev) => {
       const currentValue = Number(prev[name as keyof typeof prev]) || 0;
-      const newValue = Math.max(currentValue + delta, 0);
+      const direction = delta < 0 ? -1 : 1;
+      const newValue = Math.max(currentValue + direction * amount, 0);
 
       return {
         ...prev,

@@ -33,6 +33,16 @@ export default function GoalCard({
   else if (rawPercentage >= 50) barColor = "#f59e0b";
   if (rawPercentage > 100) barColor = "#3b82f6";
 
+  // ✅ Dynamic increments
+  const quickAmount =
+    name === "steps"
+      ? 100
+      : name === "water"
+      ? 1
+      : name === "calories"
+      ? 50
+      : 10;
+
   return (
     <div style={styles.card}>
       <div style={styles.topRow}>
@@ -51,9 +61,13 @@ export default function GoalCard({
       </div>
 
       <div style={styles.metaRow}>
-        <span>Goal {goal} {unit}</span>
         <span>
-          {remaining > 0 ? `${remaining} left` : `${Math.abs(remaining)} extra`}
+          Goal {goal} {unit}
+        </span>
+        <span>
+          {remaining > 0
+            ? `${remaining} left`
+            : `${Math.abs(remaining)} extra`}
         </span>
       </div>
 
@@ -68,34 +82,43 @@ export default function GoalCard({
       </div>
 
       {!isEditing ? (
-        <button style={styles.updateButton} onClick={() => setIsEditing(true)}>
+        <button
+          style={styles.updateButton}
+          onClick={() => setIsEditing(true)}
+        >
           Tap to update
         </button>
       ) : (
         <div style={styles.editSection}>
+          {/* - button */}
           <button
             style={styles.quickButton}
-            onClick={() => name && onQuickChange?.(name, -10)}
+            onClick={() => name && onQuickChange?.(name, -quickAmount)}
           >
-            -10
+            -{quickAmount}
           </button>
 
+          {/* ✅ Fix leading 0 issue */}
           <input
             type="number"
             name={name}
-            value={value}
+            value={value === 0 ? "" : value}
             onChange={onChange}
             style={styles.input}
           />
 
+          {/* + button */}
           <button
             style={styles.quickButton}
-            onClick={() => name && onQuickChange?.(name, 10)}
+            onClick={() => name && onQuickChange?.(name, quickAmount)}
           >
-            +10
+            +{quickAmount}
           </button>
 
-          <button style={styles.doneButton} onClick={() => setIsEditing(false)}>
+          <button
+            style={styles.doneButton}
+            onClick={() => setIsEditing(false)}
+          >
             Done
           </button>
         </div>

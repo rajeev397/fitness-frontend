@@ -19,6 +19,7 @@ export default function Signup({ onBack, onSignin }: SignupProps) {
     dailyCalorieGoal: "",
   });
 
+  const [focusedField, setFocusedField] = useState("");
   const [message, setMessage] = useState("");
   const [isError, setIsError] = useState(false);
   const [isCreated, setIsCreated] = useState(false);
@@ -75,6 +76,42 @@ export default function Signup({ onBack, onSignin }: SignupProps) {
     }
   };
 
+  const renderInput = (
+    name: keyof typeof form,
+    label: string,
+    value: string,
+    type: string = "text"
+  ) => {
+    const isActive = focusedField === name || value;
+
+    return (
+      <div style={styles.inputGroup}>
+        <input
+          style={{
+            ...styles.input,
+            ...(focusedField === name ? styles.inputFocused : {}),
+          }}
+          name={name}
+          type={type}
+          value={value}
+          onChange={handleChange}
+          onFocus={() => setFocusedField(name)}
+          onBlur={() => setFocusedField("")}
+          placeholder=" "
+        />
+
+        <label
+          style={{
+            ...styles.label,
+            ...(isActive ? styles.labelActive : {}),
+          }}
+        >
+          {label}
+        </label>
+      </div>
+    );
+  };
+
   return (
     <div style={styles.page}>
       <div style={styles.container}>
@@ -90,69 +127,39 @@ export default function Signup({ onBack, onSignin }: SignupProps) {
           </p>
 
           <div style={styles.grid}>
-            <input
-              style={styles.input}
-              name="firstName"
-              placeholder="First Name"
-              value={form.firstName}
-              onChange={handleChange}
-            />
-
-            <input
-              style={styles.input}
-              name="lastName"
-              placeholder="Last Name"
-              value={form.lastName}
-              onChange={handleChange}
-            />
-
-            <input
-              style={styles.input}
-              name="email"
-              placeholder="Email"
-              value={form.email}
-              onChange={handleChange}
-            />
-
-            <input
-              style={styles.input}
-              name="dailyProteinGoal"
-              placeholder="Protein Goal (g)"
-              value={form.dailyProteinGoal}
-              onChange={handleChange}
-            />
-
-            <input
-              style={styles.input}
-              name="dailyFiberGoal"
-              placeholder="Fiber Goal (g)"
-              value={form.dailyFiberGoal}
-              onChange={handleChange}
-            />
-
-            <input
-              style={styles.input}
-              name="dailyStepsGoal"
-              placeholder="Steps Goal"
-              value={form.dailyStepsGoal}
-              onChange={handleChange}
-            />
-
-            <input
-              style={styles.input}
-              name="dailyWaterGoal"
-              placeholder="Water Goal (L)"
-              value={form.dailyWaterGoal}
-              onChange={handleChange}
-            />
-
-            <input
-              style={styles.input}
-              name="dailyCalorieGoal"
-              placeholder="Calorie Goal"
-              value={form.dailyCalorieGoal}
-              onChange={handleChange}
-            />
+            {renderInput("firstName", "First Name", form.firstName)}
+            {renderInput("lastName", "Last Name", form.lastName)}
+            {renderInput("email", "Email", form.email, "email")}
+            {renderInput(
+              "dailyProteinGoal",
+              "Protein Goal (g)",
+              form.dailyProteinGoal,
+              "number"
+            )}
+            {renderInput(
+              "dailyFiberGoal",
+              "Fiber Goal (g)",
+              form.dailyFiberGoal,
+              "number"
+            )}
+            {renderInput(
+              "dailyStepsGoal",
+              "Steps Goal",
+              form.dailyStepsGoal,
+              "number"
+            )}
+            {renderInput(
+              "dailyWaterGoal",
+              "Water Goal (L)",
+              form.dailyWaterGoal,
+              "number"
+            )}
+            {renderInput(
+              "dailyCalorieGoal",
+              "Calorie Goal",
+              form.dailyCalorieGoal,
+              "number"
+            )}
           </div>
 
           {message && (
@@ -227,18 +234,43 @@ const styles: Record<string, React.CSSProperties> = {
   },
   grid: {
     display: "grid",
-    gap: "12px",
+    gap: "16px",
     marginBottom: "20px",
+  },
+  inputGroup: {
+    position: "relative",
   },
   input: {
     width: "100%",
     boxSizing: "border-box",
-    padding: "14px 16px",
+    padding: "18px 16px 10px",
     borderRadius: "14px",
     border: "1.5px solid #a7f3d0",
     fontSize: "15px",
     outline: "none",
     background: "white",
+    color: "#0f172a",
+  },
+  inputFocused: {
+    border: "1.5px solid #10b981",
+    boxShadow: "0 0 0 3px rgba(16, 185, 129, 0.12)",
+  },
+  label: {
+    position: "absolute",
+    left: "16px",
+    top: "14px",
+    fontSize: "15px",
+    color: "#94a3b8",
+    pointerEvents: "none",
+    transition: "all 0.2s ease",
+    background: "white",
+    padding: "0 4px",
+  },
+  labelActive: {
+    top: "-8px",
+    fontSize: "12px",
+    color: "#10b981",
+    fontWeight: "bold",
   },
   message: {
     padding: "14px 16px",
