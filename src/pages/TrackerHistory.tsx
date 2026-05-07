@@ -1,10 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
 import BackButton from "./BackButton";
 import { API_ENDPOINTS } from "../api/apiConfig";
+import AuthHeader from "../AuthHeader";
 
 type TrackerHistoryProps = {
   user: any;
   onBack: () => void;
+  onLogout: () => void;
   onSelectDay: (item: TrackerHistoryItem) => void;
 };
 
@@ -27,6 +29,7 @@ export default function TrackerHistory({
   user,
   onBack,
   onSelectDay,
+  onLogout,
 }: TrackerHistoryProps) {
   const userId = user?.userId;
   const days = 30;
@@ -64,6 +67,7 @@ export default function TrackerHistory({
   return (
     <div style={styles.page}>
       <div style={styles.container}>
+        <AuthHeader onLogout={onLogout} />
         <div style={styles.header}>
           <BackButton label="Today" onClick={onBack} />
 

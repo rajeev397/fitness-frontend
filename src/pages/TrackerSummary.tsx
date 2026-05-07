@@ -3,10 +3,12 @@ import BackButton from "./BackButton";
 import { jsPDF } from "jspdf";
 import { FiShare2, FiDownload } from "react-icons/fi";
 import { API_ENDPOINTS } from "../api/apiConfig";
+import AuthHeader from "../AuthHeader";
 
 type TrackerSummaryProps = {
   user: any;
   onBack: () => void;
+  onLogout: () => void;
 };
 
 type TrackerHistoryItem = {
@@ -29,7 +31,7 @@ type SummaryMetric = {
   unit: string;
 };
 
-export default function TrackerSummary({ user, onBack }: TrackerSummaryProps) {
+export default function TrackerSummary({ user, onBack, onLogout }: TrackerSummaryProps) {
   const userId = user?.userId;
   const days = 30;
 
@@ -209,6 +211,7 @@ export default function TrackerSummary({ user, onBack }: TrackerSummaryProps) {
   return (
     <div style={styles.page}>
       <div style={styles.container}>
+        <AuthHeader onLogout={onLogout} />
         {summary && (
           <div style={styles.actions}>
             <button style={styles.iconButton} onClick={handleSharePdf} title="Share PDF">

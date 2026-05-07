@@ -1,11 +1,14 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { fetchAuthSession } from "aws-amplify/auth";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+
 import Signup from "./pages/Signup";
 import Signin from "./pages/Signin";
 import DailyTracker from "./pages/DailyTracker";
 import TrackerHistory from "./pages/TrackerHistory";
 import TrackerSummary from "./pages/TrackerSummary";
 import TrackerHistoryDetail from "./pages/TrackerHistoryDetail";
+import { API_ENDPOINTS } from "./api/apiConfig";
 
 function Home({
   onSignup,
@@ -87,6 +90,84 @@ function AppContent() {
 
   const [user, setUser] = useState<any>(null);
   const [selectedHistoryItem, setSelectedHistoryItem] = useState<any>(null);
+  const [isRestoringSession, setIsRestoringSession] = useState(true);
+
+  useEffect(() => {
+    const restoreSession = async () => {
+      try {
+        console.log("[APP] Checking existing Cognito session...");
+
+        const session = await fetchAuthSession();
+
+        const userId = session.tokens?.idToken?.payload?.sub as
+          | string
+          | undefined;
+
+        console.log("[APP] Existing Cognito userId:", userId);
+
+        if (!userId) {
+          console.log("[APP] No active Cognito session found.");
+          setIsRestoringSession(false);
+          return;
+        }
+
+        localStorage.setItem("userId", userId);
+
+        const url = `${API_ENDPOINTS.getUser}?userId=${userId}`;
+
+        console.log("[APP] Restoring user from Spring Boot:", { url, userId });
+
+        const response = await fetch(url);
+        const userData = await response.json();
+
+        if (!response.ok) {
+          console.log("[APP] Failed to restore user:", userData);
+          localStorage.removeItem("userId");
+          setUser(null);
+          setScreen("home");
+          setIsRestoringSession(false);
+          return;
+        }
+
+        console.log("[APP] User restored successfully:", userData);
+
+        setUser(userData);
+        setScreen("dashboard");
+      } catch (error) {
+        console.error("[APP] Session restore failed:", error);
+        localStorage.removeItem("userId");
+        setUser(null);
+        setScreen("home");
+      } finally {
+        setIsRestoringSession(false);
+      }
+    };
+
+    restoreSession();
+  }, []);
+
+  const handleLogout = () => {
+    console.log("[APP] Logging out...");
+
+    localStorage.removeItem("userId");
+    setUser(null);
+    setSelectedHistoryItem(null);
+    setScreen("home");
+
+    console.log("[APP] Logout complete");
+  };
+
+  if (isRestoringSession) {
+    return (
+      <div style={styles.page}>
+        <div style={styles.heroCard}>
+          <div style={styles.emoji}>🥗</div>
+          <h1 style={styles.title}>FitTrack</h1>
+          <p style={styles.subtitle}>Loading your session...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (screen === "signup") {
     return (
@@ -115,6 +196,7 @@ function AppContent() {
         user={user}
         onViewHistory={() => setScreen("history")}
         onViewSummary={() => setScreen("summary")}
+        onLogout={handleLogout}
       />
     );
   }
@@ -128,6 +210,7 @@ function AppContent() {
           setSelectedHistoryItem(item);
           setScreen("historyDetail");
         }}
+        onLogout={handleLogout}
       />
     );
   }
@@ -137,13 +220,18 @@ function AppContent() {
       <TrackerHistoryDetail
         item={selectedHistoryItem}
         onBack={() => setScreen("history")}
+        onLogout={handleLogout}
       />
     );
   }
 
   if (screen === "summary") {
     return (
-      <TrackerSummary user={user} onBack={() => setScreen("dashboard")} />
+      <TrackerSummary
+        user={user}
+        onBack={() => setScreen("dashboard")}
+        onLogout={handleLogout}
+      />
     );
   }
 

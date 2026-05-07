@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { signIn, fetchAuthSession } from "aws-amplify/auth";
 import BackButton from "./BackButton";
 import { API_ENDPOINTS } from "../api/apiConfig";
 
@@ -10,41 +11,80 @@ export default function Signin({
   onBack: () => void;
 }) {
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+
   const [message, setMessage] = useState("");
   const [isError, setIsError] = useState(false);
   const [user, setUser] = useState<any>(null);
 
+  const [showPassword, setShowPassword] = useState(false);
+  const [emailError, setEmailError] = useState("");
+  const [passwordError, setPasswordError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const validateForm = () => {
+    let isValid = true;
+
+    setEmailError("");
+    setPasswordError("");
+
+    if (!email.trim()) {
+      setEmailError("Email is required.");
+      isValid = false;
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setEmailError("Enter a valid email address.");
+      isValid = false;
+    }
+
+    if (!password) {
+      setPasswordError("Password is required.");
+      isValid = false;
+    }
+
+    return isValid;
+  };
+
   const handleSubmit = async () => {
+    console.log("[SIGNIN] Step 1: Sign in button clicked");
     setMessage("");
     setIsError(false);
     setUser(null);
 
+    console.log("[SIGNIN] Step 2: Validating form", { email });
+
+    if (!validateForm()) {
+      setIsError(true);
+      setMessage("Please fix the highlighted fields.");
+      return;
+    }
+
     try {
-      const payload = { email };
-
-      console.log("API → post/users/email", payload);
-
-      const emailResponse = await fetch(API_ENDPOINTS.loginByEmail, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
+      setIsSubmitting(true);
+      console.log("[SIGNIN] Step 3: Calling Cognito signIn", {
+      username: email,
+      });
+      const signInResult = await signIn({
+        username: email,
+        password,
       });
 
-      const emailData = await emailResponse.json();
+      console.log("[SIGNIN] Step 4: Cognito signIn success", signInResult);
 
-      if (!emailResponse.ok) {
-        setIsError(true);
-        setMessage(emailData.message || "Signin failed. Please try again.");
-        return;
-      }
+    console.log("[SIGNIN] Step 5: Fetching Cognito auth session");
+      const session = await fetchAuthSession();
+      console.log("[SIGNIN] Step 6: Auth session received", {
+      hasAccessToken: Boolean(session.tokens?.accessToken),
+      hasIdToken: Boolean(session.tokens?.idToken),
+    });
 
-      const userId = emailData.userId;
-
+      const userId = session.tokens?.idToken?.payload?.sub as string | undefined;
+      console.log("[SIGNIN] Step 7: Extracted Cognito userId/sub", {
+      userId,
+    });
       if (!userId) {
+        console.log("[SIGNIN] Step 7 Failed: userId/sub missing");
         setIsError(true);
-        setMessage("Login successful, but userId was not returned.");
+        setMessage("Signin successful, but Cognito userId was not found.");
         return;
       }
 
@@ -53,10 +93,17 @@ export default function Signin({
       const url = `${API_ENDPOINTS.getUser}?userId=${userId}`;
 
       console.log("API → get/users/me", { userId });
-
+      console.log("[SIGNIN] Step 9: Calling Spring Boot get user API", {
+      url,
+      userId,
+    });
       const userResponse = await fetch(url);
+      console.log("[SIGNIN] Step 10: Spring Boot response received", {
+      status: userResponse.status,
+      ok: userResponse.ok,
+    });
       const userData = await userResponse.json();
-
+    console.log("[SIGNIN] Step 11: Spring Boot user data", userData);
       if (!userResponse.ok) {
         setIsError(true);
         setMessage(userData.message || "Unable to load user details.");
@@ -66,10 +113,27 @@ export default function Signin({
       setUser(userData);
       setIsError(false);
       setMessage("Signin successful 🎉");
+      console.log("[SIGNIN] Step 12: Signin complete, calling onSigninSuccess", {
+      userData,
+    });
       onSigninSuccess(userData);
-    } catch (error) {
+    } catch (error: any) {
+      console.error("Signin error:", error);
+
       setIsError(true);
-      setMessage("Unable to connect to server. Please try again.");
+
+      if (error.name === "NotAuthorizedException") {
+        setMessage("Incorrect email or password.");
+      } else if (error.name === "UserNotConfirmedException") {
+        setMessage("Please verify your email before signing in.");
+      } else if (error.name === "UserNotFoundException") {
+        setMessage("No account found with this email.");
+      } else {
+        setMessage(error.message || "Signin failed. Please try again.");
+      }
+    } finally {
+      console.log("[SIGNIN] Step 13: Signin flow finished");
+      setIsSubmitting(false);
     }
   };
 
@@ -86,8 +150,8 @@ export default function Signin({
           <h1 style={styles.title}>Continue your progress</h1>
 
           <p style={styles.subtitle}>
-            Sign in with your registered email and keep your daily goals on
-            track.
+            Sign in with your registered email and password to keep your daily
+            goals on track.
           </p>
 
           <div style={styles.previewCard}>
@@ -96,17 +160,59 @@ export default function Signin({
             <div style={styles.previewItem}>📊 View progress</div>
           </div>
 
-          <input
-            style={styles.input}
-            name="email"
-            type="email"
-            placeholder="Email address"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
+          <div style={styles.inputWrapper}>
+            <input
+              style={{
+                ...styles.input,
+                ...(emailError ? styles.inputError : {}),
+              }}
+              name="email"
+              type="email"
+              placeholder="Email address"
+              value={email}
+              onChange={(e) => {
+                setEmail(e.target.value);
+                setEmailError("");
+              }}
+            />
+            {emailError && <div style={styles.fieldError}>{emailError}</div>}
+          </div>
+
+          <div style={styles.inputWrapper}>
+            <div style={styles.passwordWrapper}>
+              <input
+                style={{
+                  ...styles.input,
+                  ...styles.passwordInput,
+                  ...(passwordError ? styles.inputError : {}),
+                }}
+                name="password"
+                type={showPassword ? "text" : "password"}
+                placeholder="Password"
+                value={password}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  setPasswordError("");
+                }}
+              />
+
+              <button
+                type="button"
+                style={styles.eyeButton}
+                onClick={() => setShowPassword((prev) => !prev)}
+                aria-label={showPassword ? "Hide password" : "Show password"}
+              >
+                {showPassword ? "🙈" : "👁️"}
+              </button>
+            </div>
+
+            {passwordError && (
+              <div style={styles.fieldError}>{passwordError}</div>
+            )}
+          </div>
 
           <p style={styles.helperText}>
-            We’ll find your account using your registered email.
+            Cognito will verify your email and password.
           </p>
 
           {message && (
@@ -129,8 +235,15 @@ export default function Signin({
             </div>
           )}
 
-          <button style={styles.primaryButton} onClick={handleSubmit}>
-            Sign In
+          <button
+            style={{
+              ...styles.primaryButton,
+              ...(isSubmitting ? styles.disabledButton : {}),
+            }}
+            onClick={handleSubmit}
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? "Signing In..." : "Sign In"}
           </button>
         </div>
       </div>
@@ -209,6 +322,13 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: "14px",
     fontWeight: 800,
   },
+  inputWrapper: {
+    marginBottom: "10px",
+    textAlign: "left",
+  },
+  passwordWrapper: {
+    position: "relative",
+  },
   input: {
     width: "100%",
     boxSizing: "border-box",
@@ -218,12 +338,36 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: "15px",
     outline: "none",
     background: "white",
-    marginBottom: "8px",
+  },
+  passwordInput: {
+    paddingRight: "48px",
+  },
+  inputError: {
+    border: "1.5px solid #ef4444",
+    boxShadow: "0 0 0 3px rgba(239, 68, 68, 0.12)",
+  },
+  fieldError: {
+    marginTop: "6px",
+    color: "#dc2626",
+    fontSize: "12px",
+    fontWeight: 700,
+  },
+  eyeButton: {
+    position: "absolute",
+    right: "12px",
+    top: "50%",
+    transform: "translateY(-50%)",
+    border: "none",
+    background: "transparent",
+    cursor: "pointer",
+    fontSize: "17px",
+    padding: "4px",
   },
   helperText: {
     margin: "0 0 18px",
     fontSize: "12px",
     color: "#64748b",
+    textAlign: "center",
   },
   message: {
     padding: "14px 16px",
@@ -274,5 +418,9 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: "bold",
     cursor: "pointer",
     boxShadow: "0 10px 24px rgba(16, 185, 129, 0.28)",
+  },
+  disabledButton: {
+    opacity: 0.7,
+    cursor: "not-allowed",
   },
 };

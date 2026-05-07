@@ -9,3 +9,8 @@ export const API_ENDPOINTS = {
   trackerToday: `${API_BASE_URL}/daily-tracker/today`,
   dailyTracker: `${API_BASE_URL}/daily-tracker`,
 };
+
+export const COGNITO_CONFIG = {
+  userPoolId: "us-east-2_g2GbqwNLg",
+  userPoolClientId: "14a85m22ocm5hobbphnlur4m7n",
+};

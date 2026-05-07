@@ -1,10 +1,12 @@
 import { useState } from "react";
 import BackButton from "./BackButton";
 import { API_ENDPOINTS } from "../api/apiConfig";
+import AuthHeader from "../AuthHeader";
 
 type TrackerHistoryDetailProps = {
   item: any;
   onBack: () => void;
+  onLogout: () => void;
 };
 
 type EditForm = {
@@ -22,6 +24,7 @@ type EditForm = {
 export default function TrackerHistoryDetail({
   item,
   onBack,
+  onLogout,
 }: TrackerHistoryDetailProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -138,6 +141,7 @@ export default function TrackerHistoryDetail({
   return (
     <div style={styles.page}>
       <div style={styles.container}>
+        <AuthHeader onLogout={onLogout} />
         <div style={styles.topRow}>
           <BackButton label="History" onClick={onBack} />
 

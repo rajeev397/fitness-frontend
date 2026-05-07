@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { signUp, confirmSignUp } from "aws-amplify/auth";
 import BackButton from "./BackButton";
 import { API_ENDPOINTS } from "../api/apiConfig";
 
@@ -7,107 +8,402 @@ type SignupProps = {
   onSignin: () => void;
 };
 
+type FormState = {
+  firstName: string;
+  lastName: string;
+  email: string;
+  password: string;
+  confirmPassword: string;
+  dailyProteinGoal: string;
+  dailyFiberGoal: string;
+  dailyStepsGoal: string;
+  dailyWaterGoal: string;
+  dailyCalorieGoal: string;
+};
+
+type FormErrors = Partial<Record<keyof FormState | "verificationCode", string>>;
+
 export default function Signup({ onBack, onSignin }: SignupProps) {
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<FormState>({
     firstName: "",
     lastName: "",
     email: "",
-    dailyProteinGoal: "",
-    dailyFiberGoal: "",
-    dailyStepsGoal: "",
-    dailyWaterGoal: "",
-    dailyCalorieGoal: "",
+    password: "",
+    confirmPassword: "",
+    dailyProteinGoal: "100",
+    dailyFiberGoal: "25",
+    dailyStepsGoal: "8000",
+    dailyWaterGoal: "3",
+    dailyCalorieGoal: "2000",
   });
+
+  const [verificationCode, setVerificationCode] = useState("");
+  const [showVerification, setShowVerification] = useState(false);
+  const [cognitoUserId, setCognitoUserId] = useState("");
 
   const [focusedField, setFocusedField] = useState("");
   const [message, setMessage] = useState("");
   const [isError, setIsError] = useState(false);
-  const [isCreated, setIsCreated] = useState(false);
+  const [isVerified, setIsVerified] = useState(false);
+
+  const [errors, setErrors] = useState<FormErrors>({});
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const validateField = (
+    name: keyof FormState,
+    value: string,
+    updatedForm: FormState = form
+  ) => {
+    if (name === "firstName" && !value.trim()) {
+      return "First name is required.";
+    }
+
+    if (name === "lastName" && !value.trim()) {
+      return "Last name is required.";
+    }
+
+    if (name === "email") {
+      if (!value.trim()) return "Email is required.";
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+        return "Enter a valid email address.";
+      }
+    }
+
+    if (name === "password") {
+      if (!value) return "Password is required.";
+      if (value.length < 8) return "Password must be at least 8 characters.";
+    }
+
+    if (name === "confirmPassword") {
+      if (!value) return "Confirm password is required.";
+      if (value !== updatedForm.password) return "Passwords do not match.";
+    }
+
+    const goalFields: Array<keyof FormState> = [
+      "dailyProteinGoal",
+      "dailyFiberGoal",
+      "dailyStepsGoal",
+      "dailyWaterGoal",
+      "dailyCalorieGoal",
+    ];
+
+    if (goalFields.includes(name)) {
+      if (!value) return "This goal is required.";
+      if (Number(value) <= 0) return "Goal must be greater than 0.";
+    }
+
+    return "";
+  };
+
+  const validateForm = () => {
+    const newErrors: FormErrors = {};
+
+    Object.keys(form).forEach((key) => {
+      const fieldName = key as keyof FormState;
+      const error = validateField(fieldName, form[fieldName], form);
+
+      if (error) {
+        newErrors[fieldName] = error;
+      }
+    });
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    const fieldName = name as keyof FormState;
+
+    const updatedForm = {
+      ...form,
+      [fieldName]: value,
+    };
+
+    setForm(updatedForm);
+
+    const fieldError = validateField(fieldName, value, updatedForm);
+
+    setErrors((prev) => {
+      const updatedErrors = {
+        ...prev,
+        [fieldName]: fieldError,
+      };
+
+      if (fieldName === "password" && updatedForm.confirmPassword) {
+        updatedErrors.confirmPassword = validateField(
+          "confirmPassword",
+          updatedForm.confirmPassword,
+          updatedForm
+        );
+      }
+
+      Object.keys(updatedErrors).forEach((errorKey) => {
+        if (!updatedErrors[errorKey as keyof FormErrors]) {
+          delete updatedErrors[errorKey as keyof FormErrors];
+        }
+      });
+
+      return updatedErrors;
+    });
   };
 
   const handleSubmit = async () => {
     setMessage("");
     setIsError(false);
-    setIsCreated(false);
+    setIsVerified(false);
+
+    if (!validateForm()) {
+      setIsError(true);
+      setMessage("Please fix the highlighted fields.");
+      return;
+    }
 
     try {
-      const payload = {
-        firstName: form.firstName,
-        lastName: form.lastName,
-        email: form.email,
-        dailyProteinGoal: Number(form.dailyProteinGoal),
-        dailyFiberGoal: Number(form.dailyFiberGoal),
-        dailyStepsGoal: Number(form.dailyStepsGoal),
-        dailyWaterGoal: Number(form.dailyWaterGoal),
-        dailyCalorieGoal: Number(form.dailyCalorieGoal),
-      };
+      setIsSubmitting(true);
 
-      console.log("API → post/users/register", payload);
-
-      const response = await fetch(API_ENDPOINTS.registerUser, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
+      const result = await signUp({
+        username: form.email,
+        password: form.password,
+        options: {
+          userAttributes: {
+            email: form.email,
+          },
         },
-        body: JSON.stringify(payload),
+      });
+      const userIdFromCognito = result.userId || "";
+      setCognitoUserId(userIdFromCognito);
+
+      sessionStorage.setItem(
+        "pendingSignupProfile",
+        JSON.stringify({
+          firstName: form.firstName,
+          lastName: form.lastName,
+          email: form.email,
+          dailyProteinGoal: form.dailyProteinGoal,
+          dailyFiberGoal: form.dailyFiberGoal,
+          dailyStepsGoal: form.dailyStepsGoal,
+          dailyWaterGoal: form.dailyWaterGoal,
+          dailyCalorieGoal: form.dailyCalorieGoal,
+        })
+      );
+
+      setShowVerification(true);
+      setIsError(false);
+      setMessage("Verification code sent to your email 📩");
+    } catch (error: any) {
+      console.error("Signup error:", error);
+
+      setIsError(true);
+
+      if (error.name === "UsernameExistsException") {
+        setMessage("User already exists. Try signing in.");
+      } else if (error.name === "InvalidPasswordException") {
+        setMessage(error.message || "Password does not meet requirements.");
+      } else {
+        setMessage(error.message || "Signup failed. Please try again.");
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleVerifyCode = async () => {
+    setMessage("");
+    setIsError(false);
+
+    if (!verificationCode.trim()) {
+      setErrors((prev) => ({
+        ...prev,
+        verificationCode: "Verification code is required.",
+      }));
+      setIsError(true);
+      setMessage("Please enter the verification code.");
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+
+      await confirmSignUp({
+        username: form.email,
+        confirmationCode: verificationCode.trim(),
       });
 
-      const data = await response.json();
+      const userId =
+  cognitoUserId || sessionStorage.getItem("pendingCognitoUserId") || "";
 
-      if (!response.ok) {
-        setIsError(true);
-        setMessage(data.message || "Signup failed. Please try again.");
-        return;
-      }
+if (!userId) {
+  throw new Error("Cognito user ID is missing. Please try signup again.");
+}
 
-      if (data.userId) {
-        localStorage.setItem("userId", data.userId);
-      }
+const payload = {
+  userId,
+  firstName: form.firstName,
+  lastName: form.lastName,
+  email: form.email,
+  dailyProteinGoal: Number(form.dailyProteinGoal),
+  dailyFiberGoal: Number(form.dailyFiberGoal),
+  dailyStepsGoal: Number(form.dailyStepsGoal),
+  dailyWaterGoal: Number(form.dailyWaterGoal),
+  dailyCalorieGoal: Number(form.dailyCalorieGoal),
+};
 
+console.log("Register API payload →", payload);
+
+const response = await fetch(API_ENDPOINTS.registerUser, {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify(payload),
+});
+
+const data = await response.json();
+
+if (!response.ok) {
+  throw new Error(data.message || "Email verified, but profile save failed.");
+}
+
+localStorage.setItem("userId", userId);
+
+
+      setIsVerified(true);
       setIsError(false);
-      setIsCreated(true);
-      setMessage("User created successfully 🎉");
-    } catch (error) {
+      setMessage("Email verified successfully 🎉");
+
+      // Later step:
+      // Call Spring Boot here to save profile in DB.
+    } catch (error: any) {
+      console.error("Verification error:", error);
+
       setIsError(true);
-      setMessage("Unable to connect to server. Please try again.");
+
+      if (error.name === "CodeMismatchException") {
+        setMessage("Invalid verification code. Please try again.");
+      } else if (error.name === "ExpiredCodeException") {
+        setMessage("Verification code expired. Please request a new code.");
+      } else {
+        setMessage(error.message || "Verification failed. Please try again.");
+      }
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   const renderInput = (
-    name: keyof typeof form,
+    name: keyof FormState,
     label: string,
     value: string,
-    type: string = "text"
+    type: string = "text",
+    options?: {
+      showToggle?: boolean;
+      showValue?: boolean;
+      onToggle?: () => void;
+    }
   ) => {
     const isActive = focusedField === name || value;
+    const hasError = Boolean(errors[name]);
 
     return (
-      <div style={styles.inputGroup}>
-        <input
-          style={{
-            ...styles.input,
-            ...(focusedField === name ? styles.inputFocused : {}),
-          }}
-          name={name}
-          type={type}
-          value={value}
-          onChange={handleChange}
-          onFocus={() => setFocusedField(name)}
-          onBlur={() => setFocusedField("")}
-          placeholder=" "
-        />
+      <div style={styles.inputWrapper}>
+        <div style={styles.inputGroup}>
+          <input
+            style={{
+              ...styles.input,
+              ...(focusedField === name ? styles.inputFocused : {}),
+              ...(hasError ? styles.inputError : {}),
+              ...(options?.showToggle ? styles.inputWithIcon : {}),
+            }}
+            name={name}
+            type={options?.showToggle && options.showValue ? "text" : type}
+            value={value}
+            onChange={handleChange}
+            onFocus={() => setFocusedField(name)}
+            onBlur={() => {
+              setFocusedField("");
+              const error = validateField(name, form[name], form);
+              setErrors((prev) => ({
+                ...prev,
+                [name]: error || undefined,
+              }));
+            }}
+            placeholder=" "
+          />
 
-        <label
-          style={{
-            ...styles.label,
-            ...(isActive ? styles.labelActive : {}),
-          }}
-        >
-          {label}
-        </label>
+          <label
+            style={{
+              ...styles.label,
+              ...(isActive ? styles.labelActive : {}),
+              ...(hasError ? styles.labelError : {}),
+            }}
+          >
+            {label}
+          </label>
+
+          {options?.showToggle && (
+            <button
+              type="button"
+              style={styles.eyeButton}
+              onClick={options.onToggle}
+              aria-label={options.showValue ? "Hide password" : "Show password"}
+            >
+              {options.showValue ? "🙈" : "👁️"}
+            </button>
+          )}
+        </div>
+
+        {hasError && <div style={styles.fieldError}>{errors[name]}</div>}
+      </div>
+    );
+  };
+
+  const renderVerificationInput = () => {
+    const isActive = focusedField === "verificationCode" || verificationCode;
+    const hasError = Boolean(errors.verificationCode);
+
+    return (
+      <div style={styles.inputWrapper}>
+        <div style={styles.inputGroup}>
+          <input
+            style={{
+              ...styles.input,
+              ...(focusedField === "verificationCode"
+                ? styles.inputFocused
+                : {}),
+              ...(hasError ? styles.inputError : {}),
+            }}
+            value={verificationCode}
+            onChange={(e) => {
+              setVerificationCode(e.target.value);
+              setErrors((prev) => ({
+                ...prev,
+                verificationCode: e.target.value.trim()
+                  ? undefined
+                  : "Verification code is required.",
+              }));
+            }}
+            onFocus={() => setFocusedField("verificationCode")}
+            onBlur={() => setFocusedField("")}
+            placeholder=" "
+          />
+
+          <label
+            style={{
+              ...styles.label,
+              ...(isActive ? styles.labelActive : {}),
+              ...(hasError ? styles.labelError : {}),
+            }}
+          >
+            Verification Code
+          </label>
+        </div>
+
+        {hasError && (
+          <div style={styles.fieldError}>{errors.verificationCode}</div>
+        )}
       </div>
     );
   };
@@ -120,71 +416,110 @@ export default function Signup({ onBack, onSignin }: SignupProps) {
         <div style={styles.card}>
           <div style={styles.badge}>✨ Start your FitTrack journey</div>
 
-          <div style={styles.emoji}>🥗</div>
+          <div style={styles.emoji}>{showVerification ? "📩" : "🥗"}</div>
 
-          <h1 style={styles.title}>Create Account</h1>
+          <h1 style={styles.title}>
+            {showVerification ? "Verify Email" : "Create Account"}
+          </h1>
 
           <p style={styles.subtitle}>
-            Set your profile and daily goals so FitTrack can personalize your
-            progress.
+            {showVerification
+              ? `We sent a verification code to ${form.email}. Enter it below to activate your account.`
+              : "Set your profile and daily goals so FitTrack can personalize your progress."}
           </p>
 
-          <div style={styles.sectionCard}>
-            <div style={styles.sectionHeader}>
-              <span style={styles.sectionIcon}>👤</span>
-              <span style={styles.sectionTitle}>Profile</span>
-            </div>
+          {!showVerification && (
+            <>
+              <div style={styles.sectionCard}>
+                <div style={styles.sectionHeader}>
+                  <span style={styles.sectionIcon}>👤</span>
+                  <span style={styles.sectionTitle}>Profile</span>
+                </div>
 
-            <div style={styles.grid}>
-              {renderInput("firstName", "First Name", form.firstName)}
-              {renderInput("lastName", "Last Name", form.lastName)}
-              {renderInput("email", "Email", form.email, "email")}
-            </div>
-          </div>
+                <div style={styles.grid}>
+                  {renderInput("firstName", "First Name", form.firstName)}
+                  {renderInput("lastName", "Last Name", form.lastName)}
+                  {renderInput("email", "Email", form.email, "email")}
+                  {renderInput("password", "Password", form.password, "password", {
+                    showToggle: true,
+                    showValue: showPassword,
+                    onToggle: () => setShowPassword((prev) => !prev),
+                  })}
+                  {renderInput(
+                    "confirmPassword",
+                    "Confirm Password",
+                    form.confirmPassword,
+                    "password",
+                    {
+                      showToggle: true,
+                      showValue: showConfirmPassword,
+                      onToggle: () =>
+                        setShowConfirmPassword((prev) => !prev),
+                    }
+                  )}
+                </div>
+              </div>
 
-          <div style={styles.sectionCard}>
-            <div style={styles.sectionHeader}>
-              <span style={styles.sectionIcon}>🎯</span>
-              <span style={styles.sectionTitle}>Daily Goals</span>
-            </div>
+              <div style={styles.sectionCard}>
+                <div style={styles.sectionHeader}>
+                  <span style={styles.sectionIcon}>🎯</span>
+                  <span style={styles.sectionTitle}>Daily Goals</span>
+                </div>
 
-            <p style={styles.helperText}>
-              You can always adjust these goals later.
-            </p>
+                <p style={styles.helperText}>
+                  We added general defaults. You can adjust them anytime.
+                </p>
 
-            <div style={styles.grid}>
-              {renderInput(
-                "dailyProteinGoal",
-                "Protein Goal (g)",
-                form.dailyProteinGoal,
-                "number"
-              )}
-              {renderInput(
-                "dailyFiberGoal",
-                "Fiber Goal (g)",
-                form.dailyFiberGoal,
-                "number"
-              )}
-              {renderInput(
-                "dailyStepsGoal",
-                "Steps Goal",
-                form.dailyStepsGoal,
-                "number"
-              )}
-              {renderInput(
-                "dailyWaterGoal",
-                "Water Goal (L)",
-                form.dailyWaterGoal,
-                "number"
-              )}
-              {renderInput(
-                "dailyCalorieGoal",
-                "Calorie Goal",
-                form.dailyCalorieGoal,
-                "number"
-              )}
+                <div style={styles.grid}>
+                  {renderInput(
+                    "dailyProteinGoal",
+                    "Protein Goal (g)",
+                    form.dailyProteinGoal,
+                    "number"
+                  )}
+                  {renderInput(
+                    "dailyFiberGoal",
+                    "Fiber Goal (g)",
+                    form.dailyFiberGoal,
+                    "number"
+                  )}
+                  {renderInput(
+                    "dailyStepsGoal",
+                    "Steps Goal",
+                    form.dailyStepsGoal,
+                    "number"
+                  )}
+                  {renderInput(
+                    "dailyWaterGoal",
+                    "Water Goal (L)",
+                    form.dailyWaterGoal,
+                    "number"
+                  )}
+                  {renderInput(
+                    "dailyCalorieGoal",
+                    "Calorie Goal",
+                    form.dailyCalorieGoal,
+                    "number"
+                  )}
+                </div>
+              </div>
+            </>
+          )}
+
+          {showVerification && (
+            <div style={styles.sectionCard}>
+              <div style={styles.sectionHeader}>
+                <span style={styles.sectionIcon}>🔐</span>
+                <span style={styles.sectionTitle}>Email Verification</span>
+              </div>
+
+              <p style={styles.helperText}>
+                Check your inbox and enter the code Cognito sent you.
+              </p>
+
+              <div style={styles.grid}>{renderVerificationInput()}</div>
             </div>
-          </div>
+          )}
 
           {message && (
             <div
@@ -197,17 +532,39 @@ export default function Signup({ onBack, onSignin }: SignupProps) {
             </div>
           )}
 
-          <button style={styles.primaryButton} onClick={handleSubmit}>
-            Create My Account 🚀
-          </button>
-
-          {isCreated && (
-            <button style={styles.signinButton} onClick={onSignin}>
-              Continue to Sign In
+          {!showVerification && (
+            <button
+              style={{
+                ...styles.primaryButton,
+                ...(isSubmitting ? styles.disabledButton : {}),
+              }}
+              onClick={handleSubmit}
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? "Creating Account..." : "Create My Account 🚀"}
             </button>
           )}
 
-          {!isCreated && (
+          {showVerification && !isVerified && (
+            <button
+              style={{
+                ...styles.primaryButton,
+                ...(isSubmitting ? styles.disabledButton : {}),
+              }}
+              onClick={handleVerifyCode}
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? "Verifying..." : "Verify Account ✅"}
+            </button>
+          )}
+
+          {isVerified && (
+            <button style={styles.signinButton} onClick={onSignin}>
+              Continue
+            </button>
+          )}
+
+          {!showVerification && (
             <button style={styles.linkButton} onClick={onSignin}>
               Already have an account? Sign In
             </button>
@@ -301,6 +658,9 @@ const styles: Record<string, React.CSSProperties> = {
     display: "grid",
     gap: "14px",
   },
+  inputWrapper: {
+    width: "100%",
+  },
   inputGroup: {
     position: "relative",
   },
@@ -315,9 +675,16 @@ const styles: Record<string, React.CSSProperties> = {
     background: "white",
     color: "#0f172a",
   },
+  inputWithIcon: {
+    paddingRight: "48px",
+  },
   inputFocused: {
     border: "1.5px solid #10b981",
     boxShadow: "0 0 0 3px rgba(16, 185, 129, 0.12)",
+  },
+  inputError: {
+    border: "1.5px solid #ef4444",
+    boxShadow: "0 0 0 3px rgba(239, 68, 68, 0.12)",
   },
   label: {
     position: "absolute",
@@ -335,6 +702,26 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: "12px",
     color: "#10b981",
     fontWeight: "bold",
+  },
+  labelError: {
+    color: "#ef4444",
+  },
+  fieldError: {
+    marginTop: "6px",
+    color: "#dc2626",
+    fontSize: "12px",
+    fontWeight: 700,
+  },
+  eyeButton: {
+    position: "absolute",
+    right: "12px",
+    top: "50%",
+    transform: "translateY(-50%)",
+    border: "none",
+    background: "transparent",
+    cursor: "pointer",
+    fontSize: "17px",
+    padding: "4px",
   },
   message: {
     padding: "14px 16px",
@@ -366,6 +753,10 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: "bold",
     cursor: "pointer",
     boxShadow: "0 10px 24px rgba(16, 185, 129, 0.28)",
+  },
+  disabledButton: {
+    opacity: 0.7,
+    cursor: "not-allowed",
   },
   signinButton: {
     width: "100%",

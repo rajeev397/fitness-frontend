@@ -2,11 +2,14 @@ import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import GoalCard from "./GoalCard";
 import { API_ENDPOINTS } from "../api/apiConfig";
+import { signOut } from "aws-amplify/auth";
+import AuthHeader from "../AuthHeader";
 
 type DailyTrackerProps = {
   user: any;
   onViewHistory: () => void;
   onViewSummary: () => void;
+  onLogout: () => void;
 };
 
 const emptyForm = {
@@ -25,6 +28,7 @@ export default function DailyTracker({
   user,
   onViewHistory,
   onViewSummary,
+  onLogout,
 }: DailyTrackerProps) {
   const [form, setForm] = useState(emptyForm);
   const [message, setMessage] = useState("");
@@ -125,6 +129,24 @@ export default function DailyTracker({
     },
   });
 
+  const handleLogout = async () => {
+  try {
+    console.log("[LOGOUT] Signing out...");
+
+    await signOut();
+
+    localStorage.removeItem("userId");
+
+    console.log("[LOGOUT] Success");
+
+    onLogout();
+  } catch (error) {
+    console.error("[LOGOUT] Failed", error);
+    setIsError(true);
+    setMessage("Logout failed. Try again.");
+  }
+};
+
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
@@ -185,6 +207,7 @@ export default function DailyTracker({
   return (
     <div style={styles.page}>
       <div style={styles.container}>
+        <AuthHeader onLogout={onLogout} />
         <div style={styles.header}>
           <h1 style={styles.title}>Today&apos;s Tracker</h1>
           <p style={styles.subtitle}>
@@ -526,6 +549,21 @@ const styles: Record<string, React.CSSProperties> = {
     marginBottom: "12px",
     fontWeight: "bold",
   },
+  logoutButton: {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: "8px",
+  padding: "14px",
+  borderRadius: "18px",
+  border: "1px solid rgba(239, 68, 68, 0.2)",
+  background: "linear-gradient(135deg, #fff1f2, #ffffff)",
+  color: "#be123c",
+  fontSize: "14px",
+  fontWeight: 900,
+  cursor: "pointer",
+  boxShadow: "0 6px 18px rgba(239, 68, 68, 0.12)",
+},
   successMessage: {
     background: "#d1fae5",
     color: "#065f46",
