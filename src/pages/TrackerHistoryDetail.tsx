@@ -160,7 +160,7 @@ export default function TrackerHistoryDetail({
         <div style={styles.header}>
           <h1 style={styles.title}>{formattedDate}</h1>
           <p style={styles.subtitle}>
-            {isEditing ? "Edit daily tracker details" : "Full daily tracker details"}
+            {isEditing ? "Edit daily tracker details" : "Your activity snapshot for this day"}
           </p>
         </div>
 
@@ -243,13 +243,13 @@ export default function TrackerHistoryDetail({
               }
               style={{
                 ...styles.statusPill,
-                background: form.gymDone ? "#d1fae5" : "#f1f5f9",
+                background: form.gymDone ? "#ecfdf5" : "#f1f5f9",
                 color: form.gymDone ? "#065f46" : "#64748b",
                 cursor: isEditing ? "pointer" : "default",
                 border: isEditing ? "2px solid #10b981" : "none",
               }}
             >
-              🏋️ {form.gymDone ? "Gym completed" : "No gym"}
+              🏋️ {form.gymDone ? "Gym completed" : "Rest day"}
             </button>
 
             <button
@@ -269,7 +269,7 @@ export default function TrackerHistoryDetail({
                 border: isEditing ? "2px solid #10b981" : "none",
               }}
             >
-              💊 {form.vitamins ? "Vitamins taken" : "No vitamins"}
+              💊 {form.vitamins ? "Vitamins taken" : "Missed vitamins"}
             </button>
           </div>
 
@@ -365,14 +365,15 @@ const styles: Record<string, React.CSSProperties> = {
     marginBottom: "18px",
   },
   editButton: {
-    border: "none",
-    borderRadius: "999px",
-    padding: "10px 16px",
-    background: "#064e3b",
-    color: "white",
-    fontWeight: 900,
-    cursor: "pointer",
-  },
+  border: "none",
+  borderRadius: "999px",
+  padding: "10px 18px",
+  background: "linear-gradient(135deg, #10b981, #059669)",
+  color: "white",
+  fontWeight: 900,
+  cursor: "pointer",
+  boxShadow: "0 8px 20px rgba(16, 185, 129, 0.25)",
+},
   editActions: {
     display: "flex",
     gap: "8px",
@@ -432,10 +433,12 @@ const styles: Record<string, React.CSSProperties> = {
     gap: "12px",
   },
   metricBox: {
-    background: "#f8fafc",
-    borderRadius: "18px",
-    padding: "14px",
-  },
+  background: "#f8fafc",
+  borderRadius: "18px",
+  padding: "14px",
+  boxShadow: "0 10px 24px rgba(15, 23, 42, 0.06)",
+  transition: "transform 0.15s ease",
+},
   metricLabel: {
     display: "flex",
     gap: "6px",
@@ -446,12 +449,13 @@ const styles: Record<string, React.CSSProperties> = {
     marginBottom: "8px",
   },
   metricValue: {
-    fontSize: "20px",
-    fontWeight: 900,
-    color: "#0f172a",
-  },
+  fontSize: "26px",
+  fontWeight: 900,
+  color: "#0f172a",
+},
   metricUnit: {
     fontSize: "12px",
+    opacity: 0.7,
     color: "#64748b",
     fontWeight: 700,
   },
@@ -473,11 +477,10 @@ const styles: Record<string, React.CSSProperties> = {
     background: "white",
   },
   statusSection: {
-    display: "grid",
-    gridTemplateColumns: "1fr",
-    gap: "10px",
-    marginTop: "16px",
-  },
+  display: "grid",
+  gap: "12px",
+  marginTop: "18px",
+},
   statusPill: {
     padding: "12px 14px",
     borderRadius: "16px",
@@ -490,6 +493,7 @@ const styles: Record<string, React.CSSProperties> = {
     background: "#f8fafc",
     borderRadius: "18px",
     padding: "14px",
+    boxShadow: "0 10px 24px rgba(15, 23, 42, 0.05)",
   },
   notesLabel: {
     fontSize: "13px",
@@ -497,11 +501,12 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: 900,
     marginBottom: "6px",
     textAlign: "center",
+    letterSpacing: "0.5px",
   },
   notesText: {
     fontSize: "14px",
     color: "#334155",
-    lineHeight: 1.45,
+    lineHeight: 1.6,
     textAlign: "center",
   },
   notesInput: {

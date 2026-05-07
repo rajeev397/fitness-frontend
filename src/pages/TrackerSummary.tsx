@@ -337,7 +337,7 @@ function CircularMetric({ metric }: { metric: SummaryMetric }) {
             cx={size / 2}
             cy={size / 2}
             r={radius}
-            stroke="#e5e7eb"
+            stroke="#eef2f7"
             strokeWidth={strokeWidth}
             fill="none"
           />
@@ -353,6 +353,9 @@ function CircularMetric({ metric }: { metric: SummaryMetric }) {
             strokeDasharray={circumference}
             strokeDashoffset={dashOffset}
             transform={`rotate(-90 ${size / 2} ${size / 2})`}
+style={{
+  transition: "stroke-dashoffset 0.8s ease",
+}}
           />
         </svg>
 
@@ -380,8 +383,8 @@ function getProgressColor(percent: number) {
 function getOverallText(score: number) {
   if (score >= 90) return "Excellent month";
   if (score >= 75) return "Good progress";
-  if (score >= 50) return "Building momentum";
-  return "Needs consistency";
+  if (score >= 50) return "Building momentum 🔥";
+  return "Small steps, big wins";
 }
 
 function getCoachInsight(metrics: SummaryMetric[]) {
@@ -401,7 +404,7 @@ function getCoachInsight(metrics: SummaryMetric[]) {
     return `Strong month overall. ${best.label} is your strongest area.`;
   }
 
-  return `${best.label} is your strongest area. ${weakest.label} needs the most attention.`;
+  return `${best.label} is your strongest area. Focus a little more on ${weakest.label} this week.`;
 }
 
 function getScoreTheme(score: number) {
@@ -521,6 +524,7 @@ const styles: Record<string, React.CSSProperties> = {
     padding: "18px",
     marginBottom: "16px",
     textAlign: "center",
+    boxShadow: "0 12px 30px rgba(15, 23, 42, 0.07)",
   },
   coachTitle: {
     fontSize: "15px",
@@ -536,6 +540,7 @@ const styles: Record<string, React.CSSProperties> = {
     borderRadius: "26px",
     padding: "20px",
     marginBottom: "16px",
+    boxShadow: "0 12px 30px rgba(15, 23, 42, 0.07)",
   },
   sectionTitle: {
     fontSize: "20px",
@@ -597,6 +602,7 @@ const styles: Record<string, React.CSSProperties> = {
     background: "rgba(255,255,255,0.96)",
     borderRadius: "22px",
     padding: "16px",
+    boxShadow: "0 12px 30px rgba(15, 23, 42, 0.07)",
   },
   statLabel: {
     fontSize: "13px",

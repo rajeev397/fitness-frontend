@@ -84,7 +84,28 @@ export default function TrackerHistory({
             </div>
           </div>
         )}
+        {!loading && history.length > 0 && (
+          <div style={styles.summaryCard}>
+            <div style={styles.summaryItem}>
+              <div style={styles.summaryValue}>
+                {history.filter(h => h.gymDone).length}
+              </div>
+              <div style={styles.summaryLabel}>Gym days</div>
+            </div>
 
+            <div style={styles.summaryItem}>
+              <div style={styles.summaryValue}>
+                {history.filter(h => h.vitamins).length}
+              </div>
+              <div style={styles.summaryLabel}>Vitamins</div>
+            </div>
+
+            <div style={styles.summaryItem}>
+              <div style={styles.summaryValue}>{history.length}</div>
+              <div style={styles.summaryLabel}>Total days</div>
+            </div>
+          </div>
+        )}
         {!loading &&
           history.length > 0 &&
           history.map((item, index) => {
@@ -100,12 +121,11 @@ export default function TrackerHistory({
                   <div>
                     <div style={styles.date}>{formattedDate}</div>
                     <div style={styles.metricsLine}>
-                      {formatSteps(item.steps)} steps · {item.protein ?? 0}g protein ·{" "}
-                      {item.calories ?? 0} cal
+                      🚶 {formatSteps(item.steps)} · 🥩 {item.protein ?? 0}g · 🔥 {item.calories ?? 0}
                     </div>
                   </div>
 
-                  <div style={styles.chevron}>›</div>
+                  <div style={styles.chevron}>→</div>
                 </div>
 
                 <div style={styles.badgeRow}>
@@ -115,7 +135,7 @@ export default function TrackerHistory({
                       ...(item.gymDone ? styles.successBadge : styles.mutedBadge),
                     }}
                   >
-                    {item.gymDone ? "🏋️ Gym done" : "🏋️ No gym"}
+                    {item.gymDone ? "🏋️ Gym" : "😴 No gym"}
                   </span>
 
                   <span
@@ -124,7 +144,7 @@ export default function TrackerHistory({
                       ...(item.vitamins ? styles.successBadge : styles.mutedBadge),
                     }}
                   >
-                    {item.vitamins ? "💊 Vitamins" : "💊 No vitamins"}
+                    {item.vitamins ? "💊 Vitamins" : "❌ No vitamins"}
                   </span>
                 </div>
               </button>
@@ -194,6 +214,7 @@ const styles: Record<string, React.CSSProperties> = {
     marginBottom: "12px",
     boxShadow: "0 10px 25px rgba(15, 23, 42, 0.06)",
     cursor: "pointer",
+    transition: "all 0.2s ease",
   },
   rowTop: {
     display: "flex",
@@ -206,6 +227,33 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: 900,
     color: "#0f172a",
     marginBottom: "6px",
+  },
+  summaryCard: {
+    display: "flex",
+    justifyContent: "space-between",
+    gap: "10px",
+    background: "rgba(255,255,255,0.96)",
+    padding: "16px",
+    borderRadius: "22px",
+    marginBottom: "14px",
+    boxShadow: "0 12px 30px rgba(15, 23, 42, 0.07)",
+  },
+
+  summaryItem: {
+    flex: 1,
+    textAlign: "center",
+  },
+
+  summaryValue: {
+    fontSize: "20px",
+    fontWeight: 900,
+    color: "#064e3b",
+  },
+
+  summaryLabel: {
+    fontSize: "12px",
+    color: "#64748b",
+    marginTop: "4px",
   },
   metricsLine: {
     fontSize: "13px",
