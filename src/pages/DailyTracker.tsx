@@ -42,6 +42,8 @@ export default function DailyTracker({
       const response = await fetch(
         `${API_ENDPOINTS.trackerToday}?userId=${userId}`
       );
+      console.log("API Response Status → trackerToday:", response.status);
+      console.log("API Response OK → trackerToday:", response.ok);
 
       if (!response.ok) {
         return null;

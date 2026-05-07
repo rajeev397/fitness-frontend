@@ -14,9 +14,6 @@ function Home({
   onSignup: () => void;
   onSignin: () => void;
 }) {
-  const now = new Date();
-const timeString = now.toLocaleTimeString();
-const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
   return (
     <div style={styles.page}>
       <div style={styles.heroCard}>
@@ -32,9 +29,6 @@ const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
           Track protein, fiber, calories, water, steps, gym sessions, and daily
           progress.
         </p>
-        <p style={{ fontSize: "12px", color: "#64748b" }}>
-  {timeString} ({timeZone})
-</p>
 
         <div style={styles.previewCard}>
           <div style={styles.previewRow}>
