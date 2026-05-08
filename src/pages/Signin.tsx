@@ -1,7 +1,14 @@
 import { useEffect, useRef, useState } from "react";
-import { signIn, fetchAuthSession } from "aws-amplify/auth";
+import {
+  signIn,
+  fetchAuthSession,
+  resetPassword,
+  confirmResetPassword,
+} from "aws-amplify/auth";
 import BackButton from "./BackButton";
 import { API_ENDPOINTS } from "../api/apiConfig";
+
+type AuthMode = "signin" | "forgot" | "reset";
 
 export default function Signin({
   onSigninSuccess,
@@ -13,19 +20,33 @@ export default function Signin({
   const savedEmail = sessionStorage.getItem("loginEmail") || "";
   const successMessage = sessionStorage.getItem("loginSuccessMessage") || "";
 
+  const [mode, setMode] = useState<AuthMode>("signin");
+
   const [email, setEmail] = useState(savedEmail);
   const [password, setPassword] = useState("");
+
+  const [resetCode, setResetCode] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmNewPassword, setConfirmNewPassword] = useState("");
 
   const [message, setMessage] = useState(successMessage);
   const [isError, setIsError] = useState(false);
   const [user, setUser] = useState<any>(null);
 
   const [showPassword, setShowPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+
   const [emailError, setEmailError] = useState("");
   const [passwordError, setPasswordError] = useState("");
+  const [resetCodeError, setResetCodeError] = useState("");
+  const [newPasswordError, setNewPasswordError] = useState("");
+  const [confirmNewPasswordError, setConfirmNewPasswordError] = useState("");
+
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const passwordRef = useRef<HTMLInputElement>(null);
+  const emailRef = useRef<HTMLInputElement>(null);
+  const resetCodeRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (savedEmail) {
@@ -36,22 +57,85 @@ export default function Signin({
     sessionStorage.removeItem("loginSuccessMessage");
   }, [savedEmail]);
 
-  const validateForm = () => {
-    let isValid = true;
-
+  const clearErrors = () => {
     setEmailError("");
     setPasswordError("");
+    setResetCodeError("");
+    setNewPasswordError("");
+    setConfirmNewPasswordError("");
+  };
+
+  const isValidEmail = (value: string) =>
+    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+
+  const validateSigninForm = () => {
+    let isValid = true;
+
+    clearErrors();
 
     if (!email.trim()) {
       setEmailError("Email is required.");
       isValid = false;
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    } else if (!isValidEmail(email)) {
       setEmailError("Enter a valid email address.");
       isValid = false;
     }
 
     if (!password) {
       setPasswordError("Password is required.");
+      isValid = false;
+    }
+
+    return isValid;
+  };
+
+  const validateForgotForm = () => {
+    let isValid = true;
+
+    clearErrors();
+
+    if (!email.trim()) {
+      setEmailError("Email is required.");
+      isValid = false;
+    } else if (!isValidEmail(email)) {
+      setEmailError("Enter a valid email address.");
+      isValid = false;
+    }
+
+    return isValid;
+  };
+
+  const validateResetForm = () => {
+    let isValid = true;
+
+    clearErrors();
+
+    if (!email.trim()) {
+      setEmailError("Email is required.");
+      isValid = false;
+    } else if (!isValidEmail(email)) {
+      setEmailError("Enter a valid email address.");
+      isValid = false;
+    }
+
+    if (!resetCode.trim()) {
+      setResetCodeError("Reset code is required.");
+      isValid = false;
+    }
+
+    if (!newPassword) {
+      setNewPasswordError("New password is required.");
+      isValid = false;
+    } else if (newPassword.length < 8) {
+      setNewPasswordError("Password must be at least 8 characters.");
+      isValid = false;
+    }
+
+    if (!confirmNewPassword) {
+      setConfirmNewPasswordError("Confirm password is required.");
+      isValid = false;
+    } else if (newPassword !== confirmNewPassword) {
+      setConfirmNewPasswordError("Passwords do not match.");
       isValid = false;
     }
 
@@ -66,7 +150,7 @@ export default function Signin({
 
     console.log("[SIGNIN] Step 2: Validating form", { email });
 
-    if (!validateForm()) {
+    if (!validateSigninForm()) {
       setIsError(true);
       setMessage("Please fix the highlighted fields.");
       return;
@@ -163,88 +247,338 @@ export default function Signin({
     }
   };
 
+  const handleSendResetCode = async () => {
+    setMessage("");
+    setIsError(false);
+    setUser(null);
+
+    if (!validateForgotForm()) {
+      setIsError(true);
+      setMessage("Please enter a valid email address.");
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+
+      await resetPassword({
+        username: email,
+      });
+
+      setIsError(false);
+      setMessage("Password reset code sent to your email 📩");
+      setMode("reset");
+
+      setTimeout(() => {
+        resetCodeRef.current?.focus();
+      }, 0);
+    } catch (error: any) {
+      console.error("Reset password error:", error);
+
+      setIsError(true);
+
+      if (error.name === "UserNotFoundException") {
+        setMessage("No account found with this email.");
+      } else if (error.name === "LimitExceededException") {
+        setMessage("Too many attempts. Please wait and try again.");
+      } else {
+        setMessage(error.message || "Unable to send reset code.");
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleConfirmResetPassword = async () => {
+    setMessage("");
+    setIsError(false);
+    setUser(null);
+
+    if (!validateResetForm()) {
+      setIsError(true);
+      setMessage("Please fix the highlighted fields.");
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+
+      await confirmResetPassword({
+        username: email,
+        confirmationCode: resetCode.trim(),
+        newPassword,
+      });
+
+      setPassword("");
+      setResetCode("");
+      setNewPassword("");
+      setConfirmNewPassword("");
+      setMode("signin");
+
+      setIsError(false);
+      setMessage("Password updated successfully 🎉 Please sign in.");
+
+      setTimeout(() => {
+        passwordRef.current?.focus();
+      }, 0);
+    } catch (error: any) {
+      console.error("Confirm reset password error:", error);
+
+      setIsError(true);
+
+      if (error.name === "CodeMismatchException") {
+        setMessage("Invalid reset code. Please try again.");
+      } else if (error.name === "ExpiredCodeException") {
+        setMessage("Reset code expired. Please request a new code.");
+      } else if (error.name === "InvalidPasswordException") {
+        setMessage(error.message || "Password does not meet requirements.");
+      } else {
+        setMessage(error.message || "Unable to reset password.");
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const goToForgotPassword = () => {
+    clearErrors();
+    setMessage("");
+    setIsError(false);
+    setUser(null);
+    setMode("forgot");
+
+    setTimeout(() => {
+      emailRef.current?.focus();
+    }, 0);
+  };
+
+  const goToSignin = () => {
+    clearErrors();
+    setMessage("");
+    setIsError(false);
+    setMode("signin");
+
+    setTimeout(() => {
+      if (email) {
+        passwordRef.current?.focus();
+      } else {
+        emailRef.current?.focus();
+      }
+    }, 0);
+  };
+
+  const title =
+    mode === "signin"
+      ? "Continue your progress"
+      : mode === "forgot"
+      ? "Reset your password"
+      : "Create new password";
+
+  const subtitle =
+    mode === "signin"
+      ? "Sign in with your registered email and password to keep your daily goals on track."
+      : mode === "forgot"
+      ? "Enter your registered email and we’ll send you a password reset code."
+      : "Enter the code from your email and choose a new password.";
+
   return (
     <div style={styles.page}>
       <div style={styles.container}>
-        <BackButton label="Home" onClick={onBack} />
+        <BackButton
+          label={mode === "signin" ? "Home" : "Back to Sign In"}
+          onClick={mode === "signin" ? onBack : goToSignin}
+        />
 
         <div style={styles.card}>
-          <div style={styles.badge}>✨ Welcome back to FitTrack</div>
-
-          <div style={styles.emoji}>🥗</div>
-
-          <h1 style={styles.title}>Continue your progress</h1>
-
-          <p style={styles.subtitle}>
-            Sign in with your registered email and password to keep your daily
-            goals on track.
-          </p>
-
-          <div style={styles.previewCard}>
-            <div style={styles.previewItem}>🥗 Track nutrition</div>
-            <div style={styles.previewItem}>🚶 Stay consistent</div>
-            <div style={styles.previewItem}>📊 View progress</div>
+          <div style={styles.badge}>
+            {mode === "signin"
+              ? "✨ Welcome back to FitTrack"
+              : "🔐 Secure account recovery"}
           </div>
+
+          <div style={styles.emoji}>{mode === "signin" ? "🥗" : "🔑"}</div>
+
+          <h1 style={styles.title}>{title}</h1>
+
+          <p style={styles.subtitle}>{subtitle}</p>
+
+          {mode === "signin" && (
+            <div style={styles.previewCard}>
+              <div style={styles.previewItem}>🥗 Track nutrition</div>
+              <div style={styles.previewItem}>🚶 Stay consistent</div>
+              <div style={styles.previewItem}>📊 View progress</div>
+            </div>
+          )}
 
           <div style={styles.inputWrapper}>
             <input
+              ref={emailRef}
               style={{
                 ...styles.input,
                 ...(emailError ? styles.inputError : {}),
               }}
               name="email"
               type="email"
+              autoComplete="email"
               placeholder="Email address"
               value={email}
               onChange={(e) => {
                 setEmail(e.target.value);
                 setEmailError("");
               }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !isSubmitting) {
+                  if (mode === "signin") {
+                    passwordRef.current?.focus();
+                  } else if (mode === "forgot") {
+                    handleSendResetCode();
+                  }
+                }
+              }}
             />
             {emailError && <div style={styles.fieldError}>{emailError}</div>}
           </div>
 
-          <div style={styles.inputWrapper}>
-            <div style={styles.passwordWrapper}>
-              <input
-                ref={passwordRef}
-                style={{
-                  ...styles.input,
-                  ...styles.passwordInput,
-                  ...(passwordError ? styles.inputError : {}),
-                }}
-                name="password"
-                type={showPassword ? "text" : "password"}
-                placeholder="Password"
-                value={password}
-                onChange={(e) => {
-                  setPassword(e.target.value);
-                  setPasswordError("");
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !isSubmitting) {
-                    handleSubmit();
-                  }
-                }}
-              />
+          {mode === "signin" && (
+            <div style={styles.inputWrapper}>
+              <div style={styles.passwordWrapper}>
+                <input
+                  ref={passwordRef}
+                  style={{
+                    ...styles.input,
+                    ...styles.passwordInput,
+                    ...(passwordError ? styles.inputError : {}),
+                  }}
+                  name="password"
+                  type={showPassword ? "text" : "password"}
+                  autoComplete="current-password"
+                  placeholder="Password"
+                  value={password}
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    setPasswordError("");
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !isSubmitting) {
+                      handleSubmit();
+                    }
+                  }}
+                />
 
-              <button
-                type="button"
-                style={styles.eyeButton}
-                onClick={() => setShowPassword((prev) => !prev)}
-                aria-label={showPassword ? "Hide password" : "Show password"}
-              >
-                {showPassword ? "🙈" : "👁️"}
-              </button>
+                <button
+                  type="button"
+                  style={styles.eyeButton}
+                  onClick={() => setShowPassword((prev) => !prev)}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                >
+                  {showPassword ? "🙈" : "👁️"}
+                </button>
+              </div>
+
+              {passwordError && (
+                <div style={styles.fieldError}>{passwordError}</div>
+              )}
             </div>
+          )}
 
-            {passwordError && (
-              <div style={styles.fieldError}>{passwordError}</div>
-            )}
-          </div>
+          {mode === "reset" && (
+            <>
+              <div style={styles.inputWrapper}>
+                <input
+                  ref={resetCodeRef}
+                  style={{
+                    ...styles.input,
+                    ...(resetCodeError ? styles.inputError : {}),
+                  }}
+                  name="resetCode"
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  placeholder="Reset code"
+                  value={resetCode}
+                  onChange={(e) => {
+                    setResetCode(e.target.value);
+                    setResetCodeError("");
+                  }}
+                />
+                {resetCodeError && (
+                  <div style={styles.fieldError}>{resetCodeError}</div>
+                )}
+              </div>
+
+              <div style={styles.inputWrapper}>
+                <div style={styles.passwordWrapper}>
+                  <input
+                    style={{
+                      ...styles.input,
+                      ...styles.passwordInput,
+                      ...(newPasswordError ? styles.inputError : {}),
+                    }}
+                    name="newPassword"
+                    type={showNewPassword ? "text" : "password"}
+                    autoComplete="new-password"
+                    placeholder="New password"
+                    value={newPassword}
+                    onChange={(e) => {
+                      setNewPassword(e.target.value);
+                      setNewPasswordError("");
+                    }}
+                  />
+
+                  <button
+                    type="button"
+                    style={styles.eyeButton}
+                    onClick={() => setShowNewPassword((prev) => !prev)}
+                    aria-label={
+                      showNewPassword ? "Hide password" : "Show password"
+                    }
+                  >
+                    {showNewPassword ? "🙈" : "👁️"}
+                  </button>
+                </div>
+
+                {newPasswordError && (
+                  <div style={styles.fieldError}>{newPasswordError}</div>
+                )}
+              </div>
+
+              <div style={styles.inputWrapper}>
+                <input
+                  style={{
+                    ...styles.input,
+                    ...(confirmNewPasswordError ? styles.inputError : {}),
+                  }}
+                  name="confirmNewPassword"
+                  type={showNewPassword ? "text" : "password"}
+                  autoComplete="new-password"
+                  placeholder="Confirm new password"
+                  value={confirmNewPassword}
+                  onChange={(e) => {
+                    setConfirmNewPassword(e.target.value);
+                    setConfirmNewPasswordError("");
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !isSubmitting) {
+                      handleConfirmResetPassword();
+                    }
+                  }}
+                />
+
+                {confirmNewPasswordError && (
+                  <div style={styles.fieldError}>
+                    {confirmNewPasswordError}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
 
           <p style={styles.helperText}>
-            Cognito will verify your email and password.
+            {mode === "signin"
+              ? "Cognito will verify your email and password."
+              : mode === "forgot"
+              ? "We’ll send the reset code to your Cognito-registered email."
+              : "Your new password will be saved securely in Cognito."}
           </p>
 
           {message && (
@@ -267,16 +601,71 @@ export default function Signin({
             </div>
           )}
 
-          <button
-            style={{
-              ...styles.primaryButton,
-              ...(isSubmitting ? styles.disabledButton : {}),
-            }}
-            onClick={handleSubmit}
-            disabled={isSubmitting}
-          >
-            {isSubmitting ? "Signing In..." : "Sign In"}
-          </button>
+          {mode === "signin" && (
+            <>
+              <button
+                style={{
+                  ...styles.primaryButton,
+                  ...(isSubmitting ? styles.disabledButton : {}),
+                }}
+                onClick={handleSubmit}
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? "Signing In..." : "Sign In"}
+              </button>
+
+              <button
+                type="button"
+                style={styles.linkButton}
+                onClick={goToForgotPassword}
+              >
+                Forgot password?
+              </button>
+            </>
+          )}
+
+          {mode === "forgot" && (
+            <>
+              <button
+                style={{
+                  ...styles.primaryButton,
+                  ...(isSubmitting ? styles.disabledButton : {}),
+                }}
+                onClick={handleSendResetCode}
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? "Sending Code..." : "Send Reset Code 📩"}
+              </button>
+
+              <button type="button" style={styles.linkButton} onClick={goToSignin}>
+                Back to Sign In
+              </button>
+            </>
+          )}
+
+          {mode === "reset" && (
+            <>
+              <button
+                style={{
+                  ...styles.primaryButton,
+                  ...(isSubmitting ? styles.disabledButton : {}),
+                }}
+                onClick={handleConfirmResetPassword}
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? "Updating Password..." : "Update Password 🔐"}
+              </button>
+
+              <button
+                type="button"
+                style={styles.linkButton}
+                onClick={handleSendResetCode}
+                disabled={isSubmitting}
+              >
+                Resend reset code
+              </button>
+            </>
+          )}
         </div>
       </div>
     </div>
@@ -367,10 +756,15 @@ const styles: Record<string, React.CSSProperties> = {
     padding: "15px 16px",
     borderRadius: "16px",
     border: "1.5px solid #a7f3d0",
-    fontSize: "15px",
+    fontSize: "16px",
     outline: "none",
-    background: "white",
-    WebkitTextFillColor: "#0f172a"
+    backgroundColor: "#ffffff",
+    color: "#0f172a",
+    caretColor: "#047857",
+    opacity: 1,
+    WebkitTextFillColor: "#0f172a",
+    WebkitAppearance: "none",
+    appearance: "none",
   },
   passwordInput: {
     paddingRight: "48px",
@@ -455,5 +849,14 @@ const styles: Record<string, React.CSSProperties> = {
   disabledButton: {
     opacity: 0.7,
     cursor: "not-allowed",
+  },
+  linkButton: {
+    border: "none",
+    background: "transparent",
+    color: "#047857",
+    fontSize: "14px",
+    fontWeight: "bold",
+    cursor: "pointer",
+    marginTop: "16px",
   },
 };
