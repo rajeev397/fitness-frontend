@@ -370,6 +370,7 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: "15px",
     outline: "none",
     background: "white",
+    WebkitTextFillColor: "#0f172a"
   },
   passwordInput: {
     paddingRight: "48px",
