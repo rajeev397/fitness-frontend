@@ -44,7 +44,6 @@ export default function Signup({ onBack, onSignin }: SignupProps) {
   const [focusedField, setFocusedField] = useState("");
   const [message, setMessage] = useState("");
   const [isError, setIsError] = useState(false);
-  const [isVerified, setIsVerified] = useState(false);
 
   const [errors, setErrors] = useState<FormErrors>({});
   const [showPassword, setShowPassword] = useState(false);
@@ -153,7 +152,6 @@ export default function Signup({ onBack, onSignin }: SignupProps) {
   const handleSubmit = async () => {
     setMessage("");
     setIsError(false);
-    setIsVerified(false);
 
     if (!validateForm()) {
       setIsError(true);
@@ -268,11 +266,13 @@ if (!response.ok) {
 }
 
 localStorage.setItem("userId", userId);
+      sessionStorage.setItem("loginEmail", form.email);
+sessionStorage.setItem(
+  "loginSuccessMessage",
+  "Email verified successfully 🎉 Your FitTrack account has been created. Please sign in."
+);
 
-
-      setIsVerified(true);
-      setIsError(false);
-      setMessage("Email verified successfully 🎉");
+onSignin();
 
       // Later step:
       // Call Spring Boot here to save profile in DB.
@@ -545,7 +545,7 @@ localStorage.setItem("userId", userId);
             </button>
           )}
 
-          {showVerification && !isVerified && (
+          {showVerification && (
             <button
               style={{
                 ...styles.primaryButton,
@@ -555,12 +555,6 @@ localStorage.setItem("userId", userId);
               disabled={isSubmitting}
             >
               {isSubmitting ? "Verifying..." : "Verify Account ✅"}
-            </button>
-          )}
-
-          {isVerified && (
-            <button style={styles.signinButton} onClick={onSignin}>
-              Continue
             </button>
           )}
 

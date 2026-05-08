@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { signIn, fetchAuthSession } from "aws-amplify/auth";
 import BackButton from "./BackButton";
 import { API_ENDPOINTS } from "../api/apiConfig";
@@ -10,10 +10,13 @@ export default function Signin({
   onSigninSuccess: (userData: any) => void;
   onBack: () => void;
 }) {
-  const [email, setEmail] = useState("");
+  const savedEmail = sessionStorage.getItem("loginEmail") || "";
+  const successMessage = sessionStorage.getItem("loginSuccessMessage") || "";
+
+  const [email, setEmail] = useState(savedEmail);
   const [password, setPassword] = useState("");
 
-  const [message, setMessage] = useState("");
+  const [message, setMessage] = useState(successMessage);
   const [isError, setIsError] = useState(false);
   const [user, setUser] = useState<any>(null);
 
@@ -21,6 +24,17 @@ export default function Signin({
   const [emailError, setEmailError] = useState("");
   const [passwordError, setPasswordError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const passwordRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (savedEmail) {
+      passwordRef.current?.focus();
+    }
+
+    sessionStorage.removeItem("loginEmail");
+    sessionStorage.removeItem("loginSuccessMessage");
+  }, [savedEmail]);
 
   const validateForm = () => {
     let isValid = true;
@@ -60,9 +74,11 @@ export default function Signin({
 
     try {
       setIsSubmitting(true);
+
       console.log("[SIGNIN] Step 3: Calling Cognito signIn", {
-      username: email,
+        username: email,
       });
+
       const signInResult = await signIn({
         username: email,
         password,
@@ -70,17 +86,20 @@ export default function Signin({
 
       console.log("[SIGNIN] Step 4: Cognito signIn success", signInResult);
 
-    console.log("[SIGNIN] Step 5: Fetching Cognito auth session");
+      console.log("[SIGNIN] Step 5: Fetching Cognito auth session");
       const session = await fetchAuthSession();
+
       console.log("[SIGNIN] Step 6: Auth session received", {
-      hasAccessToken: Boolean(session.tokens?.accessToken),
-      hasIdToken: Boolean(session.tokens?.idToken),
-    });
+        hasAccessToken: Boolean(session.tokens?.accessToken),
+        hasIdToken: Boolean(session.tokens?.idToken),
+      });
 
       const userId = session.tokens?.idToken?.payload?.sub as string | undefined;
+
       console.log("[SIGNIN] Step 7: Extracted Cognito userId/sub", {
-      userId,
-    });
+        userId,
+      });
+
       if (!userId) {
         console.log("[SIGNIN] Step 7 Failed: userId/sub missing");
         setIsError(true);
@@ -94,16 +113,21 @@ export default function Signin({
 
       console.log("API → get/users/me", { userId });
       console.log("[SIGNIN] Step 9: Calling Spring Boot get user API", {
-      url,
-      userId,
-    });
+        url,
+        userId,
+      });
+
       const userResponse = await fetch(url);
+
       console.log("[SIGNIN] Step 10: Spring Boot response received", {
-      status: userResponse.status,
-      ok: userResponse.ok,
-    });
+        status: userResponse.status,
+        ok: userResponse.ok,
+      });
+
       const userData = await userResponse.json();
-    console.log("[SIGNIN] Step 11: Spring Boot user data", userData);
+
+      console.log("[SIGNIN] Step 11: Spring Boot user data", userData);
+
       if (!userResponse.ok) {
         setIsError(true);
         setMessage(userData.message || "Unable to load user details.");
@@ -113,9 +137,11 @@ export default function Signin({
       setUser(userData);
       setIsError(false);
       setMessage("Signin successful 🎉");
+
       console.log("[SIGNIN] Step 12: Signin complete, calling onSigninSuccess", {
-      userData,
-    });
+        userData,
+      });
+
       onSigninSuccess(userData);
     } catch (error: any) {
       console.error("Signin error:", error);
@@ -181,6 +207,7 @@ export default function Signin({
           <div style={styles.inputWrapper}>
             <div style={styles.passwordWrapper}>
               <input
+                ref={passwordRef}
                 style={{
                   ...styles.input,
                   ...styles.passwordInput,
@@ -193,6 +220,11 @@ export default function Signin({
                 onChange={(e) => {
                   setPassword(e.target.value);
                   setPasswordError("");
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !isSubmitting) {
+                    handleSubmit();
+                  }
                 }}
               />
 
