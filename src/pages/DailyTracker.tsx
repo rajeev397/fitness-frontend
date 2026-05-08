@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import GoalCard from "./GoalCard";
 import { API_ENDPOINTS } from "../api/apiConfig";
-import { signOut } from "aws-amplify/auth";
 import AuthHeader from "../AuthHeader";
 
 type DailyTrackerProps = {
@@ -128,24 +127,6 @@ export default function DailyTracker({
       );
     },
   });
-
-  const handleLogout = async () => {
-  try {
-    console.log("[LOGOUT] Signing out...");
-
-    await signOut();
-
-    localStorage.removeItem("userId");
-
-    console.log("[LOGOUT] Success");
-
-    onLogout();
-  } catch (error) {
-    console.error("[LOGOUT] Failed", error);
-    setIsError(true);
-    setMessage("Logout failed. Try again.");
-  }
-};
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
