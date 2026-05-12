@@ -211,7 +211,10 @@ export default function TrackerSummary({ user, onBack, onLogout }: TrackerSummar
   return (
     <div style={styles.page}>
       <div style={styles.container}>
-        <AuthHeader onLogout={onLogout} />
+        <AuthHeader onLogout={onLogout} onEditProfile={() => {
+            console.log("Edit profile clicked");
+          }}
+        />
         {summary && (
           <div style={styles.actions}>
             <button style={styles.iconButton} onClick={handleSharePdf} title="Share PDF">

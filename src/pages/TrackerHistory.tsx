@@ -67,7 +67,10 @@ export default function TrackerHistory({
   return (
     <div style={styles.page}>
       <div style={styles.container}>
-        <AuthHeader onLogout={onLogout} />
+        <AuthHeader onLogout={onLogout} onEditProfile={() => {
+            console.log("Edit profile clicked");
+          }}
+        />
         <div style={styles.header}>
           <BackButton label="Today" onClick={onBack} />
 

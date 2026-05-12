@@ -1,5 +1,12 @@
-import { useState } from "react";
-import { signUp, confirmSignUp } from "aws-amplify/auth";
+import { useEffect, useState } from "react";
+import {
+  signUp,
+  confirmSignUp,
+  signIn,
+  fetchAuthSession,
+  signOut,
+  resendSignUpCode,
+} from "aws-amplify/auth";
 import BackButton from "./BackButton";
 import { API_ENDPOINTS } from "../api/apiConfig";
 
@@ -50,18 +57,26 @@ export default function Signup({ onBack, onSignin }: SignupProps) {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const [isResending, setIsResending] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
+
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+
+    const timer = window.setInterval(() => {
+      setResendCooldown((prev) => Math.max(prev - 1, 0));
+    }, 1000);
+
+    return () => window.clearInterval(timer);
+  }, [resendCooldown]);
+
   const validateField = (
     name: keyof FormState,
     value: string,
     updatedForm: FormState = form
   ) => {
-    if (name === "firstName" && !value.trim()) {
-      return "First name is required.";
-    }
-
-    if (name === "lastName" && !value.trim()) {
-      return "Last name is required.";
-    }
+    if (name === "firstName" && !value.trim()) return "First name is required.";
+    if (name === "lastName" && !value.trim()) return "Last name is required.";
 
     if (name === "email") {
       if (!value.trim()) return "Email is required.";
@@ -103,9 +118,7 @@ export default function Signup({ onBack, onSignin }: SignupProps) {
       const fieldName = key as keyof FormState;
       const error = validateField(fieldName, form[fieldName], form);
 
-      if (error) {
-        newErrors[fieldName] = error;
-      }
+      if (error) newErrors[fieldName] = error;
     });
 
     setErrors(newErrors);
@@ -171,6 +184,7 @@ export default function Signup({ onBack, onSignin }: SignupProps) {
           },
         },
       });
+
       const userIdFromCognito = result.userId || "";
       setCognitoUserId(userIdFromCognito);
 
@@ -191,9 +205,9 @@ export default function Signup({ onBack, onSignin }: SignupProps) {
       setShowVerification(true);
       setIsError(false);
       setMessage("Verification code sent to your email 📩");
+      setResendCooldown(30);
     } catch (error: any) {
       console.error("Signup error:", error);
-
       setIsError(true);
 
       if (error.name === "UsernameExistsException") {
@@ -205,6 +219,37 @@ export default function Signup({ onBack, onSignin }: SignupProps) {
       }
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleResendCode = async () => {
+    setMessage("");
+    setIsError(false);
+
+    if (resendCooldown > 0 || isResending) return;
+
+    if (!form.email.trim()) {
+      setIsError(true);
+      setMessage("Email not found. Please go back and sign up again.");
+      return;
+    }
+
+    try {
+      setIsResending(true);
+
+      await resendSignUpCode({
+        username: form.email.trim(),
+      });
+
+      setIsError(false);
+      setMessage("Verification code resent to your email 📩");
+      setResendCooldown(30);
+    } catch (error: any) {
+      console.error("Resend verification code error:", error);
+      setIsError(true);
+      setMessage(error.message || "Unable to resend code. Please try again.");
+    } finally {
+      setIsResending(false);
     }
   };
 
@@ -230,55 +275,59 @@ export default function Signup({ onBack, onSignin }: SignupProps) {
         confirmationCode: verificationCode.trim(),
       });
 
-      const userId =
-  cognitoUserId || sessionStorage.getItem("pendingCognitoUserId") || "";
+      try {
+        await signOut();
+      } catch {
+        // ignore
+      }
 
-if (!userId) {
-  throw new Error("Cognito user ID is missing. Please try signup again.");
-}
+      await signIn({
+        username: form.email,
+        password: form.password,
+      });
 
-const payload = {
-  userId,
-  firstName: form.firstName,
-  lastName: form.lastName,
-  email: form.email,
-  dailyProteinGoal: Number(form.dailyProteinGoal),
-  dailyFiberGoal: Number(form.dailyFiberGoal),
-  dailyStepsGoal: Number(form.dailyStepsGoal),
-  dailyWaterGoal: Number(form.dailyWaterGoal),
-  dailyCalorieGoal: Number(form.dailyCalorieGoal),
-};
+      const session = await fetchAuthSession();
+      const accessToken = session.tokens?.accessToken?.toString();
 
-console.log("Register API payload →", payload);
+      if (!accessToken) {
+        throw new Error("Access token not found after signup.");
+      }
 
-const response = await fetch(API_ENDPOINTS.registerUser, {
-  method: "POST",
-  headers: {
-    "Content-Type": "application/json",
-  },
-  body: JSON.stringify(payload),
-});
+      const payload = {
+        firstName: form.firstName,
+        lastName: form.lastName,
+        email: form.email,
+        dailyProteinGoal: Number(form.dailyProteinGoal),
+        dailyFiberGoal: Number(form.dailyFiberGoal),
+        dailyStepsGoal: Number(form.dailyStepsGoal),
+        dailyWaterGoal: Number(form.dailyWaterGoal),
+        dailyCalorieGoal: Number(form.dailyCalorieGoal),
+      };
 
-const data = await response.json();
+      const response = await fetch(API_ENDPOINTS.registerUser, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify(payload),
+      });
 
-if (!response.ok) {
-  throw new Error(data.message || "Email verified, but profile save failed.");
-}
+      const data = await response.json();
 
-localStorage.setItem("userId", userId);
+      if (!response.ok) {
+        throw new Error(data.message || "Email verified, but profile save failed.");
+      }
+
       sessionStorage.setItem("loginEmail", form.email);
-sessionStorage.setItem(
-  "loginSuccessMessage",
-  "Email verified successfully 🎉 Your FitTrack account has been created. Please sign in."
-);
+      sessionStorage.setItem(
+        "loginSuccessMessage",
+        "Email verified successfully 🎉 Your FitTrack account has been created. Please sign in."
+      );
 
-onSignin();
-
-      // Later step:
-      // Call Spring Boot here to save profile in DB.
+      onSignin();
     } catch (error: any) {
       console.error("Verification error:", error);
-
       setIsError(true);
 
       if (error.name === "CodeMismatchException") {
@@ -370,9 +419,7 @@ onSignin();
           <input
             style={{
               ...styles.input,
-              ...(focusedField === "verificationCode"
-                ? styles.inputFocused
-                : {}),
+              ...(focusedField === "verificationCode" ? styles.inputFocused : {}),
               ...(hasError ? styles.inputError : {}),
             }}
             value={verificationCode}
@@ -407,6 +454,8 @@ onSignin();
       </div>
     );
   };
+
+  const isResendDisabled = isResending || resendCooldown > 0 || isSubmitting;
 
   return (
     <div style={styles.page}>
@@ -453,8 +502,7 @@ onSignin();
                     {
                       showToggle: true,
                       showValue: showConfirmPassword,
-                      onToggle: () =>
-                        setShowConfirmPassword((prev) => !prev),
+                      onToggle: () => setShowConfirmPassword((prev) => !prev),
                     }
                   )}
                 </div>
@@ -546,16 +594,33 @@ onSignin();
           )}
 
           {showVerification && (
-            <button
-              style={{
-                ...styles.primaryButton,
-                ...(isSubmitting ? styles.disabledButton : {}),
-              }}
-              onClick={handleVerifyCode}
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? "Verifying..." : "Verify Account ✅"}
-            </button>
+            <>
+              <button
+                style={{
+                  ...styles.primaryButton,
+                  ...(isSubmitting ? styles.disabledButton : {}),
+                }}
+                onClick={handleVerifyCode}
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? "Verifying..." : "Verify Account ✅"}
+              </button>
+
+              <button
+                style={{
+                  ...styles.resendButton,
+                  ...(isResendDisabled ? styles.resendButtonDisabled : {}),
+                }}
+                onClick={handleResendCode}
+                disabled={isResendDisabled}
+              >
+                {isResending
+                  ? "Resending..."
+                  : resendCooldown > 0
+                  ? `Resend code in ${resendCooldown}s`
+                  : "Didn’t receive the code? Resend"}
+              </button>
+            </>
           )}
 
           {!showVerification && (
@@ -773,5 +838,18 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: "bold",
     cursor: "pointer",
     marginTop: "16px",
+  },
+  resendButton: {
+    border: "none",
+    background: "transparent",
+    color: "#047857",
+    fontSize: "14px",
+    fontWeight: "bold",
+    cursor: "pointer",
+    marginTop: "14px",
+  },
+  resendButtonDisabled: {
+    color: "#94a3b8",
+    cursor: "not-allowed",
   },
 };

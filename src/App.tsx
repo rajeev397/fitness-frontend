@@ -9,6 +9,7 @@ import TrackerHistory from "./pages/TrackerHistory";
 import TrackerSummary from "./pages/TrackerSummary";
 import TrackerHistoryDetail from "./pages/TrackerHistoryDetail";
 import { API_ENDPOINTS } from "./api/apiConfig";
+import EditProfile from "./pages/EditProfile";
 
 function Home({
   onSignup,
@@ -86,6 +87,7 @@ function AppContent() {
     | "history"
     | "summary"
     | "historyDetail"
+    | "editProfile"
   >("home");
 
   const [user, setUser] = useState<any>(null);
@@ -99,25 +101,33 @@ function AppContent() {
 
         const session = await fetchAuthSession();
 
-        const userId = session.tokens?.idToken?.payload?.sub as
-          | string
-          | undefined;
+        const accessToken = session.tokens?.accessToken?.toString();
 
-        console.log("[APP] Existing Cognito userId:", userId);
-
-        if (!userId) {
+        if (!accessToken) {
           console.log("[APP] No active Cognito session found.");
           setIsRestoringSession(false);
           return;
         }
 
-        localStorage.setItem("userId", userId);
+        const url = API_ENDPOINTS.getUser;
 
-        const url = `${API_ENDPOINTS.getUser}?userId=${userId}`;
+        console.log("[APP] Restoring user from Spring Boot:", { url });
 
-        console.log("[APP] Restoring user from Spring Boot:", { url, userId });
+        const response = await fetch(url, {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        });
 
-        const response = await fetch(url);
+        if (!response.ok) {
+          console.log("[APP] Failed to restore user:", response.status);
+          localStorage.removeItem("userId");
+          setUser(null);
+          setScreen("home");
+          setIsRestoringSession(false);
+          return;
+        }
+
         const userData = await response.json();
 
         if (!response.ok) {
@@ -197,6 +207,7 @@ function AppContent() {
         onViewHistory={() => setScreen("history")}
         onViewSummary={() => setScreen("summary")}
         onLogout={handleLogout}
+        onEditProfile={() => setScreen("editProfile")}
       />
     );
   }
@@ -234,6 +245,16 @@ function AppContent() {
       />
     );
   }
+
+  if (screen === "editProfile") {
+  return (
+    <EditProfile
+      user={user}
+      onBack={() => setScreen("dashboard")}
+      onLogout={handleLogout}
+    />
+  );
+}
 
   return (
     <Home

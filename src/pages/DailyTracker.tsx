@@ -3,12 +3,14 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import GoalCard from "./GoalCard";
 import { API_ENDPOINTS } from "../api/apiConfig";
 import AuthHeader from "../AuthHeader";
+import EditProfileModal from "./EditProfile";
 
 type DailyTrackerProps = {
   user: any;
   onViewHistory: () => void;
   onViewSummary: () => void;
   onLogout: () => void;
+  onEditProfile: () => void;
 };
 
 const emptyForm = {
@@ -28,6 +30,7 @@ export default function DailyTracker({
   onViewHistory,
   onViewSummary,
   onLogout,
+  onEditProfile,
 }: DailyTrackerProps) {
   const [form, setForm] = useState(emptyForm);
   const [message, setMessage] = useState("");
@@ -188,7 +191,10 @@ export default function DailyTracker({
   return (
     <div style={styles.page}>
       <div style={styles.container}>
-        <AuthHeader onLogout={onLogout} />
+        <AuthHeader
+  onLogout={onLogout}
+  onEditProfile={() => onEditProfile()}
+/>
         <div style={styles.header}>
           <h1 style={styles.title}>Today&apos;s Tracker</h1>
           <p style={styles.subtitle}>

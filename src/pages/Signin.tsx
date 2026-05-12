@@ -7,6 +7,7 @@ import {
 } from "aws-amplify/auth";
 import BackButton from "./BackButton";
 import { API_ENDPOINTS } from "../api/apiConfig";
+import { signOut } from "aws-amplify/auth";
 
 type AuthMode = "signin" | "forgot" | "reset";
 
@@ -163,6 +164,12 @@ export default function Signin({
         username: email,
       });
 
+      try {
+  await signOut();
+} catch {
+  // ignore if no user is signed in
+}
+
       const signInResult = await signIn({
         username: email,
         password,
@@ -172,6 +179,7 @@ export default function Signin({
 
       console.log("[SIGNIN] Step 5: Fetching Cognito auth session");
       const session = await fetchAuthSession();
+      const accessToken = session.tokens?.accessToken?.toString();
 
       console.log("[SIGNIN] Step 6: Auth session received", {
         hasAccessToken: Boolean(session.tokens?.accessToken),
@@ -193,7 +201,7 @@ export default function Signin({
 
       localStorage.setItem("userId", userId);
 
-      const url = `${API_ENDPOINTS.getUser}?userId=${userId}`;
+      const url = API_ENDPOINTS.getUser;
 
       console.log("API → get/users/me", { userId });
       console.log("[SIGNIN] Step 9: Calling Spring Boot get user API", {
@@ -201,7 +209,11 @@ export default function Signin({
         userId,
       });
 
-      const userResponse = await fetch(url);
+      const userResponse = await fetch(url, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
 
       console.log("[SIGNIN] Step 10: Spring Boot response received", {
         status: userResponse.status,
@@ -371,15 +383,15 @@ export default function Signin({
     mode === "signin"
       ? "Continue your progress"
       : mode === "forgot"
-      ? "Reset your password"
-      : "Create new password";
+        ? "Reset your password"
+        : "Create new password";
 
   const subtitle =
     mode === "signin"
       ? "Sign in with your registered email and password to keep your daily goals on track."
       : mode === "forgot"
-      ? "Enter your registered email and we’ll send you a password reset code."
-      : "Enter the code from your email and choose a new password.";
+        ? "Enter your registered email and we’ll send you a password reset code."
+        : "Enter the code from your email and choose a new password.";
 
   return (
     <div style={styles.page}>
@@ -577,8 +589,8 @@ export default function Signin({
             {mode === "signin"
               ? "Cognito will verify your email and password."
               : mode === "forgot"
-              ? "We’ll send the reset code to your Cognito-registered email."
-              : "Your new password will be saved securely in Cognito."}
+                ? "We’ll send the reset code to your Cognito-registered email."
+                : "Your new password will be saved securely in Cognito."}
           </p>
 
           {message && (
