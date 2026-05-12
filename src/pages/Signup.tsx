@@ -174,18 +174,6 @@ export default function Signup({ onBack, onSignin }: SignupProps) {
     try {
       setIsSubmitting(true);
 
-      const result = await signUp({
-        username: form.email,
-        password: form.password,
-        options: {
-          userAttributes: {
-            email: form.email,
-          },
-        },
-      });
-
-      const userIdFromCognito = result.userId || "";
-
       sessionStorage.setItem(
         "pendingSignupProfile",
         JSON.stringify({
