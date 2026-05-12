@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import {
-  signUp,
   confirmSignUp,
   signIn,
   fetchAuthSession,
