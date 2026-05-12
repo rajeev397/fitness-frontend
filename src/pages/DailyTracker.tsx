@@ -3,7 +3,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import GoalCard from "./GoalCard";
 import { API_ENDPOINTS } from "../api/apiConfig";
 import AuthHeader from "../AuthHeader";
-import EditProfileModal from "./EditProfile";
 
 type DailyTrackerProps = {
   user: any;

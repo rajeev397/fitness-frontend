@@ -46,7 +46,6 @@ export default function Signup({ onBack, onSignin }: SignupProps) {
 
   const [verificationCode, setVerificationCode] = useState("");
   const [showVerification, setShowVerification] = useState(false);
-  const [cognitoUserId, setCognitoUserId] = useState("");
 
   const [focusedField, setFocusedField] = useState("");
   const [message, setMessage] = useState("");
@@ -186,7 +185,6 @@ export default function Signup({ onBack, onSignin }: SignupProps) {
       });
 
       const userIdFromCognito = result.userId || "";
-      setCognitoUserId(userIdFromCognito);
 
       sessionStorage.setItem(
         "pendingSignupProfile",
